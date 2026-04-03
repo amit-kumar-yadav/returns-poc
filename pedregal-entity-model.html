@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pedregal RLP — Domain Entity Model</title>
+<style>
+  /* ── Reset & base ──────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    background: #F7F8FA;
+    color: #1E2138;
+    padding: 32px 40px 60px;
+  }
+
+  /* ── Typography ────────────────────────────────────────── */
+  h1 { font-size: 22px; font-weight: 700; color: #1A1D2E; margin-bottom: 4px; }
+  h2 { font-size: 15px; font-weight: 700; color: #1A1D2E; margin-bottom: 12px; }
+  h3 { font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 0.3px; }
+  .subtitle { font-size: 12px; color: #8A8EA8; margin-bottom: 32px; }
+  code { font-family: 'SF Mono','Fira Code','Courier New',monospace; font-size: 11px; }
+
+  /* ── Layout grid ───────────────────────────────────────── */
+  .page { max-width: 1520px; margin: 0 auto; }
+
+  .cols-main {
+    display: grid;
+    grid-template-columns: 700px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* ── Entity card ───────────────────────────────────────── */
+  .entity {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px #0000001A;
+    background: #fff;
+    margin-bottom: 12px;
+  }
+
+  .entity-header {
+    padding: 9px 14px 8px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .entity-header .name { font-size: 12px; font-weight: 700; color: #fff; }
+  .entity-header .tag  {
+    font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.75);
+    margin-left: auto;
+    background: rgba(255,255,255,0.15);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .entity-body { padding: 10px 14px 12px; }
+
+  .field {
+    display: grid;
+    grid-template-columns: 148px 1fr;
+    gap: 4px 8px;
+    padding: 4px 0;
+    border-bottom: 1px dashed #E8EAF0;
+    align-items: baseline;
+  }
+  .field:last-child { border-bottom: none; }
+
+  .field-name {
+    font-family: 'SF Mono','Courier New',monospace;
+    font-size: 10px;
+    color: #6B6F88;
+    white-space: nowrap;
+  }
+
+  .field-val {
+    font-family: 'SF Mono','Courier New',monospace;
+    font-size: 10px;
+    color: #1E2138;
+    font-weight: 500;
+  }
+
+  .field-note {
+    grid-column: 2;
+    font-size: 9.5px;
+    color: #9A9EBC;
+    font-style: italic;
+    margin-top: -2px;
+    padding-bottom: 2px;
+  }
+
+  .entity-note {
+    margin: 8px 0 0;
+    padding: 7px 10px;
+    background: #F5F6FA;
+    border-radius: 6px;
+    font-size: 10.5px;
+    color: #5A5E7A;
+    font-style: italic;
+    line-height: 1.55;
+  }
+
+  /* ── Entity color themes ───────────────────────────────── */
+  .cx    .entity-header { background: #4A6FA5; }
+  .cr    .entity-header { background: #6B52A8; }
+  .ro    .entity-header { background: #4D5DA0; }
+  .rfx   .entity-header { background: #9A6340; }
+  .ir    .entity-header { background: #4A8A68; }
+  .rq    .entity-header { background: #507840; }
+
+  .cx  .entity { border: 1.5px solid #7B93C8; }
+  .cr  .entity { border: 1.5px solid #9B86C8; }
+  .ro  .entity { border: 1.5px solid #8E9ACC; }
+  .rfx .entity { border: 1.5px solid #C4956A; }
+  .ir  .entity { border: 1.5px solid #7CB89A; }
+  .rq  .entity { border: 1.5px solid #85B87A; }
+
+  /* ── State badges ──────────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-family: 'SF Mono','Courier New',monospace;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-pending  { background:#FBF5E8; color:#B09040; border:1px solid #E8D898; }
+  .badge-transit  { background:#EBF0FF; color:#4060C0; border:1px solid #B0C0E8; }
+  .badge-inspect  { background:#F0EEFF; color:#7060C0; border:1px solid #C8B8E8; }
+  .badge-refunded { background:#EBF8F0; color:#4A9060; border:1px solid #A0D8B8; }
+  .badge-complete { background:#F0FBF4; color:#4A8860; border:1px solid #98D8A8; }
+  .badge-created  { background:#FBF5E8; color:#B09040; border:1px solid #E8D898; }
+  .badge-draft    { background:#EEF0F8; color:#7080B0; border:1px solid #C0C8E0; }
+
+  /* ── Hierarchy arrows ──────────────────────────────────── */
+  .arrow-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 8px 12px;
+    font-size: 10.5px;
+    color: #8890BB;
+  }
+  .arrow-row .arr { font-size: 14px; color: #8890BB; line-height: 1; }
+  .arrow-row .rel { font-style: italic; }
+
+  /* ── Section separator ─────────────────────────────────── */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #9A9EBC;
+    margin: 20px 0 8px;
+  }
+
+  /* ── FxOrder grid ──────────────────────────────────────── */
+  .fxorder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── IR grid ───────────────────────────────────────────── */
+  .ir-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+  /* ── Right panel ───────────────────────────────────────── */
+  .right-panel { display: flex; flex-direction: column; gap: 20px; }
+
+  .panel-card {
+    background: #fff;
+    border: 1.5px solid #DDE0E8;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px #0000001A;
+  }
+  .panel-card-header {
+    background: #F0F2F8;
+    border-bottom: 1px solid #DDE0E8;
+    padding: 10px 16px 9px;
+  }
+  .panel-card-header h2 { margin: 0; }
+  .panel-card-header .sub {
+    font-size: 10px; color: #8A8EA8; margin-top: 2px; font-style: italic;
+  }
+  .panel-card-body { padding: 14px 16px; }
+
+  /* ── Money flow rows ───────────────────────────────────── */
+  .money-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 0 12px;
+    padding: 10px 12px;
+    border-radius: 7px;
+    margin-bottom: 8px;
+    border-left: 4px solid;
+  }
+  .money-row:last-child { margin-bottom: 0; }
+
+  .money-row .method { font-size: 11px; font-weight: 700; padding-top: 1px; }
+  .money-row .detail { }
+  .money-row .trigger  { font-size: 10px; font-family:'SF Mono','Courier New',monospace; color:#374151; margin-bottom:3px; }
+  .money-row .action   { font-size: 10px; color:#475569; margin-bottom:2px; }
+  .money-row .timing   { font-size: 9.5px; color:#9CA3AF; font-style:italic; }
+
+  .money-card   { background:#EEF3FF; border-color:#4A6FA5; }
+  .money-card   .method { color:#4A6FA5; }
+  .money-credit { background:#F5F0FF; border-color:#6B52A8; }
+  .money-credit .method { color:#6B52A8; }
+  .money-xchange{ background:#FFF4EC; border-color:#9A6340; }
+  .money-xchange .method { color:#9A6340; }
+  .money-fee    { background:#F0F8EC; border-color:#507840; }
+  .money-fee    .method { color:#507840; }
+
+  /* ── State machine ─────────────────────────────────────── */
+  .state-chain {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0;
+  }
+  .state-chain .sep { color:#C0C4D8; font-size:16px; line-height:1; }
+
+  .state-box {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-family:'SF Mono','Courier New',monospace;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .s-pending { background:#FBF5E8; color:#B09040; border-color:#E8D898; }
+  .s-transit { background:#EBF0FF; color:#4060C0; border-color:#B0C0E8; }
+  .s-inspect { background:#F0EEFF; color:#7060C0; border-color:#C8B8E8; }
+  .s-refund  { background:#EBF8F0; color:#4A9060; border-color:#A0D8B8; }
+  .s-done    { background:#F0FBF4; color:#4A8860; border-color:#98D8A8; }
+
+  .callout {
+    background:#EEF3FF;
+    border:1px solid #B0C0E8;
+    border-radius:7px;
+    padding:10px 13px;
+    font-size:10.5px;
+    line-height:1.6;
+    color:#2A3060;
+  }
+  .callout strong { color:#1A1D2E; }
+
+  /* ── Design principles ─────────────────────────────────── */
+  .principle {
+    display: grid;
+    grid-template-columns: 8px 1fr;
+    gap: 0 10px;
+    margin-bottom: 12px;
+  }
+  .principle:last-child { margin-bottom: 0; }
+  .principle .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #9B86C8; margin-top: 4px; flex-shrink: 0;
+  }
+  .principle .bold { font-weight: 700; font-size: 11px; color: #1A1D2E; margin-bottom: 2px; }
+  .principle .desc { font-size: 10.5px; color: #5A5E7A; line-height: 1.55; }
+
+  /* ── Footer ────────────────────────────────────────────── */
+  .footer {
+    margin-top: 28px;
+    padding-top: 16px;
+    border-top: 1px solid #DDE0E8;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10.5px; color: #5A5E7A;
+  }
+  .legend-dot {
+    width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Title -->
+  <h1>Pedregal Reverse Logistics Platform — Domain Entity Model</h1>
+  <p class="subtitle">Entity relationships · lifecycle states · money movement flows &nbsp;|&nbsp; Pedregal / RLP Vision — Amit Yadav &amp; Amrik Kochhar</p>
+
+  <div class="cols-main">
+
+    <!-- ════════════════════════════════════════════════════
+         LEFT COLUMN — entity hierarchy
+         ════════════════════════════════════════════════════ -->
+    <div class="left-col">
+
+      <!-- CxOrder -->
+      <p class="section-label">Source of Truth (Immutable)</p>
+
+      <div class="cx">
+        <div class="entity">
+          <div class="entity-header">
+            <span class="name">CxOrder</span>
+            <span class="tag">IMMUTABLE · never modified after delivery</span>
+          </div>
+          <div class="entity-body">
+            <div class="field">
+              <span class="field-name">orderId</span>
+              <span class="field-val">DD-20260321-8842</span>
+            </div>
+            <div class="field">
+              <span class="field-name">merchantName</span>
+              <span class="field-val">Nike</span>
+            </div>
+            <div class="field">
+              <span class="field-name">status</span>
+              <span class="field-val">delivered</span>
+            </div>
+            <div class="field">
+              <span class="field-name">total</span>
+              <span class="field-val">$208.97</span>
+            </div>
+            <div class="field">
+              <span class="field-name">lineItems</span>
+              <span class="field-val">[ CxOrderLineItem × N ]</span>
+              <span class="field-note">Contains unitPrice — the historical value used for all refund calculations. Never changes.</span>
+            </div>
+            <div class="entity-note">
+              CxOrder is locked the moment it's delivered. Returns never mutate it.
+              ItemReturn child records carry all mutable state — the CxOrder stays pristine for financial audit.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cx" style="margin-left:20px">
+        <div class="entity">
+          <div class="entity-header">
+            <span class="name">CxOrderLineItem</span>
+            <span class="tag">child of CxOrder</span>
+          </div>
+          <div class="entity-body">
+            <div class="field">
+              <span class="field-name">lineItemId</span>
+              <span class="field-val">li-8842-01</span>
+            </div>
+            <div class="field">
+              <span class="field-name">productName</span>
+              <span class="field-val">Air Force 1 '07</span>
+            </div>
+            <div class="field">
+              <span class="field-name">unitPrice</span>
+              <span class="field-val">$110.00</span>
+              <span class="field-note">Becomes historicalValue on ItemReturn — immutable reference for settlement</span>
+            </div>
+            <div class="field">
+              <span class="field-name">returnable</span>
+              <span class="field-val">true &nbsp;/&nbsp; returnWindowDays: 30</span>
+            </div>
+            <div class="field">
+              <span class="field-name">returnState*</span>
+              <span class="field-val badge badge-pending">PENDING_PICKUP</span>
+              <span class="field-note">* Presentation-layer projection only — derived from ItemReturn. Not stored on CxOrder.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ConsumerReturn -->
+      <p class="section-label" style="margin-top:24px">Return Session</p>
+
+      <div class="cr">
+        <div class="entity">
+          <div class="entity-header">
+            <span class="name">ConsumerReturn</span>
+            <span class="tag">consumer intent · QR owner · session state</span>
+          </div>
+          <div class="entity-body">
+            <div class="field">
+              <span class="field-name">consumerReturnId</span>
+              <span class="field-val">CR-2026-0001</span>
+            </div>
+            <div class="field">
+              <span class="field-name">state</span>
+              <span class="field-val">DRAFT → COMMITTED → PICKED_UP → COMPLETED</span>
+            </div>
+            <div class="field">
+              <span class="field-name">lineItems</span>
+              <span class="field-val">[ ReturnLineItem × 4 ]</span>
+              <span class="field-note">Spans multiple CxOrders — this is the multi-order return session</span>
+            </div>
+            <div class="field">
+              <span class="field-name">pickupFee</span>
+              <span class="field-val">$3.99</span>
+              <span class="field-note">Charged once per ConsumerReturn — NOT per item, NOT per merchant</span>
+            </div>
+            <div class="field">
+              <span class="field-name">qrCodeData</span>
+              <span class="field-val">encodes consumerReturnId</span>
+              <span class="field-note">1 QR code covers all items across all orders in this session</span>
+            </div>
+            <div class="field">
+              <span class="field-name">returnOrderId</span>
+              <span class="field-val">FK → ReturnOrder</span>
+            </div>
+            <div class="field">
+              <span class="field-name">returnQuote</span>
+              <span class="field-val">FK → ReturnQuote (embedded)</span>
+            </div>
+            <div class="entity-note">
+              <strong>ConsumerReturn ≠ ReturnOrder.</strong>
+              CR = what the consumer requested + the QR code + session UX state.
+              ReturnOrder = how it gets executed operationally (Dasher tasks, settlement).
+              Separation allows re-routing and partial cancellations without touching consumer state.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-row"><span class="arr">↓</span> <span class="rel">creates on commit</span></div>
+
+      <!-- ReturnOrder -->
+      <div class="ro">
+        <div class="entity">
+          <div class="entity-header">
+            <span class="name">ReturnOrder</span>
+            <span class="tag">operational · fulfillment · settlement orchestrator</span>
+          </div>
+          <div class="entity-body">
+            <div class="field">
+              <span class="field-name">returnOrderId</span>
+              <span class="field-val">RO-2026-0001</span>
+            </div>
+            <div class="field">
+              <span class="field-name">consumerReturnId</span>
+              <span class="field-val">FK → ConsumerReturn</span>
+            </div>
+            <div class="field">
+              <span class="field-name">workflowState</span>
+              <span class="field-val">WAITING → FULLY_ASSIGNED → PICKED_UP → SETTLED</span>
+            </div>
+            <div class="field">
+              <span class="field-name">returnFxOrders</span>
+              <span class="field-val">[ ReturnFxOrder × N ]</span>
+              <span class="field-note">N = number of Dasher tasks — NOT number of merchants</span>
+            </div>
+            <div class="field">
+              <span class="field-name">dxTrackingData</span>
+              <span class="field-val">[ DxTrackingData per assigned Dasher ]</span>
+            </div>
+            <div class="entity-note">
+              Peer to CxOrder on the reverse side. Owns all fulfillment: Dasher assignment, logistics routing, financial settlement workflow.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-row"><span class="arr">↓</span> <span class="rel">splits into N Dasher tasks</span></div>
+      <p style="font-size:10.5px;color:#9A6340;font-weight:600;margin:0 0 8px 12px">
+        ⚡ ReturnFxOrder = 1 Dasher task &nbsp;(NOT one-per-merchant. Assignment engine splits by routing &amp; capacity.)
+      </p>
+
+      <!-- ReturnFxOrders -->
+      <div class="fxorder-grid">
+        <div class="rfx">
+          <div class="entity">
+            <div class="entity-header">
+              <span class="name">ReturnFxOrder</span>
+              <span class="tag">Dasher A</span>
+            </div>
+            <div class="entity-body">
+              <div class="field">
+                <span class="field-name">returnFxOrderId</span>
+                <span class="field-val">RFX-2026-0001</span>
+              </div>
+              <div class="field">
+                <span class="field-name">assignedDasher</span>
+                <span class="field-val">Marcus T. (DX-98721)</span>
+              </div>
+              <div class="field">
+                <span class="field-name">itemReturnIds</span>
+                <span class="field-val">IR-001, IR-002</span>
+                <span class="field-note">Nike items: Air Force 1 + Hoodie</span>
+              </div>
+              <div class="field">
+                <span class="field-name">merchantIds</span>
+                <span class="field-val">[Nike] — informational</span>
+              </div>
+              <div class="field">
+                <span class="field-name">state</span>
+                <span class="field-val"><span class="badge badge-created">CREATED</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rfx">
+          <div class="entity">
+            <div class="entity-header">
+              <span class="name">ReturnFxOrder</span>
+              <span class="tag">Dasher B</span>
+            </div>
+            <div class="entity-body">
+              <div class="field">
+                <span class="field-name">returnFxOrderId</span>
+                <span class="field-val">RFX-2026-0002</span>
+              </div>
+              <div class="field">
+                <span class="field-name">assignedDasher</span>
+                <span class="field-val">Priya R. (DX-44302)</span>
+              </div>
+              <div class="field">
+                <span class="field-name">itemReturnIds</span>
+                <span class="field-val">IR-003, IR-004</span>
+                <span class="field-note">Lululemon: ABC Pant + Reversible Mat</span>
+              </div>
+              <div class="field">
+                <span class="field-name">merchantIds</span>
+                <span class="field-val">[Lululemon] — informational</span>
+              </div>
+              <div class="field">
+                <span class="field-name">state</span>
+                <span class="field-val"><span class="badge badge-created">CREATED</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-row"><span class="arr">↓</span> <span class="rel">each FxOrder carries N ItemReturns (unit of money movement)</span></div>
+
+      <!-- ItemReturns -->
+      <p style="font-size:10.5px;color:#4A8A68;font-weight:600;margin:0 0 8px 12px">
+        🔄 ItemReturn = unit of money movement. Each triggers its own C&amp;R action against its source CxOrder at IN_TRANSIT.
+      </p>
+      <div class="ir-grid">
+        <div class="ir">
+          <div class="entity">
+            <div class="entity-header">
+              <span class="name">ItemReturn</span>
+              <span class="tag">IR-001</span>
+            </div>
+            <div class="entity-body">
+              <div class="field"><span class="field-name">cxOrderId</span><span class="field-val">Nike order</span></div>
+              <div class="field"><span class="field-name">lineItemId</span><span class="field-val">li-8842-01</span></div>
+              <div class="field"><span class="field-name">historicalValue</span><span class="field-val">$110.00</span></div>
+              <div class="field"><span class="field-name">refundMethod</span><span class="field-val">store_credit</span></div>
+              <div class="field"><span class="field-name">reason</span><span class="field-val">wrong_size</span></div>
+              <div class="field"><span class="field-name">state</span><span class="field-val"><span class="badge badge-pending">PENDING</span></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="ir">
+          <div class="entity">
+            <div class="entity-header">
+              <span class="name">ItemReturn</span>
+              <span class="tag">IR-002</span>
+            </div>
+            <div class="entity-body">
+              <div class="field"><span class="field-name">cxOrderId</span><span class="field-val">Nike order</span></div>
+              <div class="field"><span class="field-name">lineItemId</span><span class="field-val">li-8842-02</span></div>
+              <div class="field"><span class="field-name">historicalValue</span><span class="field-val">$79.97</span></div>
+              <div class="field"><span class="field-name">refundMethod</span><span class="field-val">original_payment</span></div>
+              <div class="field"><span class="field-name">reason</span><span class="field-val">wrong_size</span></div>
+              <div class="field"><span class="field-name">state</span><span class="field-val"><span class="badge badge-pending">PENDING</span></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="ir">
+          <div class="entity">
+            <div class="entity-header">
+              <span class="name">ItemReturn</span>
+              <span class="tag">IR-003</span>
+            </div>
+            <div class="entity-body">
+              <div class="field"><span class="field-name">cxOrderId</span><span class="field-val">Lululemon</span></div>
+              <div class="field"><span class="field-name">lineItemId</span><span class="field-val">li-3391-01</span></div>
+              <div class="field"><span class="field-name">historicalValue</span><span class="field-val">$128.00</span></div>
+              <div class="field"><span class="field-name">refundMethod</span><span class="field-val">original_payment</span></div>
+              <div class="field"><span class="field-name">reason</span><span class="field-val">changed_mind</span></div>
+              <div class="field"><span class="field-name">state</span><span class="field-val"><span class="badge badge-pending">PENDING</span></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="ir">
+          <div class="entity">
+            <div class="entity-header">
+              <span class="name">ItemReturn</span>
+              <span class="tag">IR-004</span>
+            </div>
+            <div class="entity-body">
+              <div class="field"><span class="field-name">cxOrderId</span><span class="field-val">Lululemon</span></div>
+              <div class="field"><span class="field-name">lineItemId</span><span class="field-val">li-3391-02</span></div>
+              <div class="field"><span class="field-name">historicalValue</span><span class="field-val">$100.00</span></div>
+              <div class="field"><span class="field-name">refundMethod</span><span class="field-val">original_payment</span></div>
+              <div class="field"><span class="field-name">reason</span><span class="field-val">changed_mind</span></div>
+              <div class="field"><span class="field-name">state</span><span class="field-val"><span class="badge badge-pending">PENDING</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ReturnQuote -->
+      <p class="section-label" style="margin-top:24px">Financial Preview</p>
+      <div class="rq">
+        <div class="entity">
+          <div class="entity-header">
+            <span class="name">ReturnQuote</span>
+            <span class="tag">attached to ConsumerReturn · Happy Returns model</span>
+          </div>
+          <div class="entity-body">
+            <div class="field">
+              <span class="field-name">byMethod.card</span>
+              <span class="field-val">IR-002, IR-003, IR-004 → $307.97 subtotal</span>
+            </div>
+            <div class="field">
+              <span class="field-name">netCashRefund</span>
+              <span class="field-val">$303.98  (after $3.99 service fee)</span>
+              <span class="field-note">3–5 business days after pickup scan</span>
+            </div>
+            <div class="field">
+              <span class="field-name">byMethod.credit</span>
+              <span class="field-val">IR-001 → $110.00 + 10% bonus = $121.00</span>
+              <span class="field-note">Instant upon Dasher pickup scan</span>
+            </div>
+            <div class="field">
+              <span class="field-name">serviceFeeLine</span>
+              <span class="field-val">$3.99 → ConsumerReturn (not per ItemReturn)</span>
+            </div>
+            <div class="entity-note">
+              Each item settles independently via C&amp;R against its original CxOrder.
+              Service fee belongs to ConsumerReturn — deducted from card refund bucket, not per item.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /left-col -->
+
+    <!-- ════════════════════════════════════════════════════
+         RIGHT PANEL
+         ════════════════════════════════════════════════════ -->
+    <div class="right-panel">
+
+      <!-- Money Movement -->
+      <div class="panel-card">
+        <div class="panel-card-header">
+          <h2>Money Movement Flow</h2>
+          <p class="sub">Triggered at IN_TRANSIT — liability shifts at Dasher pickup scan</p>
+        </div>
+        <div class="panel-card-body">
+          <div class="money-row money-card">
+            <span class="method">Card Refund</span>
+            <div class="detail">
+              <div class="trigger">ItemReturn.refundMethod = original_payment</div>
+              <div class="action">→ C&amp;R fires against original CxOrder → refunds original payment method</div>
+              <div class="timing">⏱ 3–5 business days after Dasher pickup scan</div>
+            </div>
+          </div>
+          <div class="money-row money-credit">
+            <span class="method">Store Credit</span>
+            <div class="detail">
+              <div class="trigger">ItemReturn.refundMethod = store_credit</div>
+              <div class="action">→ DoorDash Credits issued (+10% bonus) — independent from CxOrder settlement</div>
+              <div class="timing">⏱ Instant upon Dasher pickup scan</div>
+            </div>
+          </div>
+          <div class="money-row money-xchange">
+            <span class="method">Exchange</span>
+            <div class="detail">
+              <div class="trigger">ItemReturn.refundMethod = exchange</div>
+              <div class="action">→ ExchangeFxOrder created → forward logistics delivers replacement item</div>
+              <div class="timing">⏱ New item ships within 24h of pickup confirmation</div>
+            </div>
+          </div>
+          <div class="money-row money-fee">
+            <span class="method">Service Fee</span>
+            <div class="detail">
+              <div class="trigger">ConsumerReturn.pickupFee = $3.99  (charged once per return)</div>
+              <div class="action">→ Settled against ConsumerReturn — NOT deducted per ItemReturn</div>
+              <div class="timing">⏱ Shown in ReturnQuote before confirmation</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State Machine -->
+      <div class="panel-card">
+        <div class="panel-card-header">
+          <h2>ItemReturn Lifecycle States</h2>
+        </div>
+        <div class="panel-card-body">
+          <div class="state-chain">
+            <span class="state-box s-pending">PENDING_PICKUP</span>
+            <span class="sep">→</span>
+            <span class="state-box s-transit">IN_TRANSIT</span>
+            <span class="sep">→</span>
+            <span class="state-box s-inspect">INSPECTED</span>
+            <span class="sep">→</span>
+            <span class="state-box s-refund">REFUNDED</span>
+            <span class="sep">→</span>
+            <span class="state-box s-done">COMPLETED</span>
+          </div>
+          <div class="callout">
+            <strong>PENDING_PICKUP → IN_TRANSIT = Liability Shift Event</strong><br/>
+            Dasher scans item barcode on pickup. C&amp;R triggered per ItemReturn independently.
+            Each ItemReturn settles against its source CxOrder.
+            Partial pickups are supported — one Dasher's FxOrder can be PICKED_UP while another is still PENDING.
+            <br/><br/>
+            <code>CANCELLED</code> is also a valid terminal state (policy rejection, customer cancellation, etc.)
+          </div>
+        </div>
+      </div>
+
+      <!-- 1 QR → N FxOrders diagram -->
+      <div class="panel-card">
+        <div class="panel-card-header">
+          <h2>QR Code Scoping</h2>
+          <p class="sub">1 QR code covers the entire ConsumerReturn session</p>
+        </div>
+        <div class="panel-card-body">
+          <div style="display:grid;grid-template-columns:auto 32px auto;align-items:center;gap:8px;margin-bottom:12px;">
+            <div style="background:#F5F0FF;border:1.5px solid #9B86C8;border-radius:8px;padding:10px 14px;text-align:center;">
+              <div style="font-size:10px;font-weight:700;color:#6B52A8;margin-bottom:3px;">ConsumerReturn QR</div>
+              <code style="font-size:11px;color:#4A3080;">CR-2026-0001</code>
+              <div style="font-size:9.5px;color:#9A9EBC;margin-top:4px;">4 items · 2 orders · 1 pickup</div>
+            </div>
+            <div style="text-align:center;font-size:20px;color:#C0C4D8;">→</div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <div style="background:#FFF4EC;border:1.5px solid #C4956A;border-radius:7px;padding:7px 11px;">
+                <div style="font-size:10px;font-weight:700;color:#9A6340;">RFX-0001 · Marcus T.</div>
+                <div style="font-size:9.5px;color:#7A5030;">Nike: Air Force 1 + Hoodie</div>
+              </div>
+              <div style="background:#FFF4EC;border:1.5px solid #C4956A;border-radius:7px;padding:7px 11px;">
+                <div style="font-size:10px;font-weight:700;color:#9A6340;">RFX-0002 · Priya R.</div>
+                <div style="font-size:9.5px;color:#7A5030;">Lululemon: ABC Pant + Mat</div>
+              </div>
+            </div>
+          </div>
+          <p style="font-size:10.5px;color:#5A5E7A;line-height:1.6;">
+            Dasher scans the QR → backend resolves to ConsumerReturn →
+            returns only the ItemReturnIds in their assigned FxOrder.
+            Neither Dasher sees the other's items. Settlement is per-FxOrder, reconciled against each source CxOrder.
+          </p>
+        </div>
+      </div>
+
+      <!-- Design Principles -->
+      <div class="panel-card">
+        <div class="panel-card-header">
+          <h2>Key Design Principles — RLP Vision</h2>
+        </div>
+        <div class="panel-card-body">
+          <div class="principle">
+            <div class="dot"></div>
+            <div>
+              <div class="bold">ConsumerReturn ≠ ReturnOrder</div>
+              <div class="desc">CR = consumer intent + QR + session state. RO = operational execution + Dasher assignment + financial settlement. The split allows re-routing, partial cancellation, and multi-Dasher flows without touching consumer-facing state.</div>
+            </div>
+          </div>
+          <div class="principle">
+            <div class="dot" style="background:#9A6340"></div>
+            <div>
+              <div class="bold">ReturnFxOrder = 1 Dasher task (not 1 merchant)</div>
+              <div class="desc">Assignment engine splits by routing capacity. One Dasher can carry items from multiple merchants. One merchant's items can be split across Dashers. merchantIds is informational, not the partitioning key.</div>
+            </div>
+          </div>
+          <div class="principle">
+            <div class="dot" style="background:#4A8A68"></div>
+            <div>
+              <div class="bold">ItemReturn = unit of money movement</div>
+              <div class="desc">One C&amp;R action per ItemReturn, reconciled against its original CxOrder. Service fee settles against ConsumerReturn — not per item. Each item refunds on its own timeline based on refundMethod.</div>
+            </div>
+          </div>
+          <div class="principle">
+            <div class="dot" style="background:#4A6FA5"></div>
+            <div>
+              <div class="bold">CxOrder is immutable</div>
+              <div class="desc">Never modified after delivery. ItemReturn records carry all mutable state. returnState on the order history UI is a derived projection — not stored on CxOrder. This keeps the audit trail clean.</div>
+            </div>
+          </div>
+          <div class="principle">
+            <div class="dot" style="background:#4D5DA0"></div>
+            <div>
+              <div class="bold">Fulfillment as abstraction (Task Framework)</div>
+              <div class="desc">ReturnFxOrder is a Task Framework task — the inverse of a forward delivery. Business logic defines what needs to happen; Task Framework handles Dasher assignment, routing, and state transitions.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /right-panel -->
+  </div><!-- /cols-main -->
+
+  <!-- Legend -->
+  <div class="footer">
+    <strong style="font-size:10.5px;color:#6B6F88">Entities:</strong>
+    <div class="legend-item"><div class="legend-dot" style="background:#4A6FA5;opacity:0.7"></div>CxOrder (immutable)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#6B52A8;opacity:0.7"></div>ConsumerReturn</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4D5DA0;opacity:0.7"></div>ReturnOrder</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#9A6340;opacity:0.7"></div>ReturnFxOrder</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4A8A68;opacity:0.7"></div>ItemReturn</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#507840;opacity:0.7"></div>ReturnQuote</div>
+  </div>
+
+</div>
+</body>
+</html>
