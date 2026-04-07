@@ -1,0 +1,2748 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RLP — Reverse Logistics Platform · Architecture Report</title>
+
+  <!-- Fonts: Inter (requested) + Cabinet Grotesk for display -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─────────────────────────────────────────────────────
+       DESIGN TOKENS — Custom palette (navy + steel blue)
+       per spec: #1A1D2E headers, #4A6FA5 accents, white panels
+    ───────────────────────────────────────────────────── */
+    :root, [data-theme="light"] {
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+      --color-bg:             #F0F2F7;
+      --color-surface:        #FFFFFF;
+      --color-surface-2:      #F8F9FC;
+      --color-surface-offset: #EEF1F8;
+      --color-border:         #D8DEE9;
+      --color-divider:        #E4E8F0;
+
+      --color-navy:           #1A1D2E;
+      --color-navy-mid:       #252842;
+      --color-navy-light:     #313659;
+
+      --color-accent:         #4A6FA5;
+      --color-accent-hover:   #3A5A8A;
+      --color-accent-light:   #E8EEF6;
+      --color-accent-muted:   #7A9CC4;
+
+      --color-text:           #1A1D2E;
+      --color-text-muted:     #5A6480;
+      --color-text-faint:     #94A0BC;
+      --color-text-inverse:   #F0F2F7;
+
+      --color-success:        #27814E;
+      --color-success-bg:     #E6F4ED;
+      --color-warning:        #B06000;
+      --color-warning-bg:     #FEF3E2;
+      --color-error:          #B03060;
+      --color-error-bg:       #FBEDF3;
+      --color-purple:         #6B4BAA;
+      --color-purple-bg:      #F0EAFA;
+      --color-teal:           #1D7D82;
+      --color-teal-bg:        #E5F4F4;
+      --color-orange:         #C05A00;
+      --color-orange-bg:      #FDF0E6;
+
+      --shadow-sm:  0 1px 3px rgba(26,29,46,0.06), 0 1px 2px rgba(26,29,46,0.04);
+      --shadow-md:  0 4px 12px rgba(26,29,46,0.08), 0 2px 4px rgba(26,29,46,0.06);
+      --shadow-lg:  0 12px 32px rgba(26,29,46,0.12), 0 4px 8px rgba(26,29,46,0.06);
+
+      --radius-sm:  0.375rem;
+      --radius-md:  0.5rem;
+      --radius-lg:  0.75rem;
+      --radius-xl:  1rem;
+      --radius-full: 9999px;
+
+      --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+
+      --text-xs:   clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+      --text-sm:   clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+      --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+      --text-lg:   clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+      --text-xl:   clamp(1.5rem, 1.2rem + 1.25vw, 2.25rem);
+      --text-2xl:  clamp(2rem, 1.2rem + 2.5vw, 3rem);
+
+      --space-1: 0.25rem;  --space-2: 0.5rem;  --space-3: 0.75rem;
+      --space-4: 1rem;     --space-5: 1.25rem; --space-6: 1.5rem;
+      --space-8: 2rem;     --space-10: 2.5rem; --space-12: 3rem;
+      --space-16: 4rem;    --space-20: 5rem;   --space-24: 6rem;
+
+      --content-default: 960px;
+      --content-wide: 1160px;
+    }
+
+    [data-theme="dark"] {
+      --color-bg:             #0E1018;
+      --color-surface:        #141720;
+      --color-surface-2:      #1A1E2A;
+      --color-surface-offset: #1F2333;
+      --color-border:         #2C3248;
+      --color-divider:        #252A3A;
+
+      --color-navy:           #E0E4F0;
+      --color-navy-mid:       #B0B8D4;
+      --color-navy-light:     #8890B4;
+
+      --color-accent:         #6B90C8;
+      --color-accent-hover:   #82A4D8;
+      --color-accent-light:   #1E2840;
+      --color-accent-muted:   #5070A0;
+
+      --color-text:           #D8DCE8;
+      --color-text-muted:     #8890B0;
+      --color-text-faint:     #505870;
+      --color-text-inverse:   #0E1018;
+
+      --color-success:        #48B078;
+      --color-success-bg:     #0E2018;
+      --color-warning:        #D08030;
+      --color-warning-bg:     #201408;
+      --color-error:          #D06080;
+      --color-error-bg:       #200818;
+      --color-purple:         #9A7AE0;
+      --color-purple-bg:      #180E30;
+      --color-teal:           #3DA8B0;
+      --color-teal-bg:        #081820;
+      --color-orange:         #E08040;
+      --color-orange-bg:      #201008;
+
+      --shadow-sm:  0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md:  0 4px 12px rgba(0,0,0,0.4);
+      --shadow-lg:  0 12px 32px rgba(0,0,0,0.5);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme]) {
+        --color-bg: #0E1018; --color-surface: #141720; --color-surface-2: #1A1E2A;
+        --color-surface-offset: #1F2333; --color-border: #2C3248; --color-divider: #252A3A;
+        --color-text: #D8DCE8; --color-text-muted: #8890B0; --color-text-faint: #505870;
+        --color-accent: #6B90C8; --color-accent-hover: #82A4D8; --color-accent-light: #1E2840;
+        --color-navy: #E0E4F0;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.3); --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+      }
+    }
+
+    /* ─────────────────────────────────────────────────────
+       BASE RESET
+    ───────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility; scroll-behavior: smooth;
+      scroll-padding-top: var(--space-16);
+    }
+    body {
+      min-height: 100dvh; line-height: 1.6;
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      color: var(--color-text);
+      background-color: var(--color-bg);
+    }
+    img, svg { display: block; max-width: 100%; }
+    h1, h2, h3, h4, h5, h6 { text-wrap: balance; line-height: 1.2; font-weight: 600; }
+    p, li { text-wrap: pretty; max-width: 72ch; }
+    table { border-collapse: collapse; width: 100%; }
+    button { cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
+    a, button { transition: color var(--transition), background var(--transition), border-color var(--transition); }
+    :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; border-radius: var(--radius-sm); }
+    code { font-family: var(--font-mono); }
+
+    /* ─────────────────────────────────────────────────────
+       LAYOUT
+    ───────────────────────────────────────────────────── */
+    .container { max-width: var(--content-default); margin: 0 auto; padding: 0 var(--space-6); }
+    .container--wide { max-width: var(--content-wide); margin: 0 auto; padding: 0 var(--space-6); }
+
+    /* ─────────────────────────────────────────────────────
+       TOP NAV / HEADER
+    ───────────────────────────────────────────────────── */
+    .site-header {
+      background: var(--color-navy);
+      color: var(--color-text-inverse);
+      position: sticky; top: 0; z-index: 100;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    [data-theme="dark"] .site-header { background: #0A0C14; }
+
+    .site-header__inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px; max-width: var(--content-wide);
+      margin: 0 auto; padding: 0 var(--space-6);
+    }
+    .site-header__logo {
+      display: flex; align-items: center; gap: var(--space-3);
+    }
+    .site-header__logo-mark {
+      width: 32px; height: 32px;
+      background: var(--color-accent);
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; letter-spacing: -0.5px;
+      color: white; flex-shrink: 0;
+    }
+    .site-header__title {
+      font-size: var(--text-sm); font-weight: 600;
+      color: rgba(255,255,255,0.9);
+    }
+    .site-header__subtitle {
+      font-size: var(--text-xs);
+      color: rgba(255,255,255,0.45);
+      margin-top: 1px;
+    }
+    .header-nav {
+      display: flex; align-items: center; gap: var(--space-1);
+    }
+    .header-nav a {
+      text-decoration: none;
+      font-size: var(--text-xs); font-weight: 500;
+      color: rgba(255,255,255,0.55);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-sm);
+    }
+    .header-nav a:hover { color: white; background: rgba(255,255,255,0.06); }
+    .theme-toggle {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-md);
+      padding: var(--space-2);
+      color: rgba(255,255,255,0.6);
+      display: flex; align-items: center; justify-content: center;
+      margin-left: var(--space-4);
+    }
+    .theme-toggle:hover { background: rgba(255,255,255,0.12); color: white; }
+    @media (max-width: 680px) {
+      .header-nav { display: none; }
+    }
+
+    /* ─────────────────────────────────────────────────────
+       HERO BANNER
+    ───────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, var(--color-navy) 0%, #252842 55%, #2D3460 100%);
+      color: white; padding: var(--space-20) 0 var(--space-16);
+      position: relative; overflow: hidden;
+    }
+    [data-theme="dark"] .hero { background: linear-gradient(135deg, #080A12 0%, #0E1020 55%, #141830 100%); }
+    .hero::before {
+      content: '';
+      position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+      background: radial-gradient(ellipse at 70% 30%, rgba(74,111,165,0.18) 0%, transparent 65%),
+                  radial-gradient(ellipse at 15% 80%, rgba(74,111,165,0.08) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: -120px; right: -60px; width: 500px; height: 500px;
+      border-radius: 50%;
+      border: 1px solid rgba(74,111,165,0.15);
+      pointer-events: none;
+    }
+    .hero__inner { position: relative; z-index: 1; }
+    .hero__eyebrow {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--color-accent-muted);
+      background: rgba(74,111,165,0.15);
+      border: 1px solid rgba(74,111,165,0.25);
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius-full);
+      margin-bottom: var(--space-5);
+    }
+    .hero__heading {
+      font-size: var(--text-2xl); font-weight: 700;
+      letter-spacing: -0.03em; line-height: 1.1;
+      color: white; margin-bottom: var(--space-4);
+    }
+    .hero__heading span { color: var(--color-accent-muted); }
+    .hero__tagline {
+      font-size: var(--text-lg); font-weight: 300;
+      color: rgba(255,255,255,0.65);
+      max-width: 54ch; margin-bottom: var(--space-8);
+    }
+    .hero__meta {
+      display: flex; align-items: center; gap: var(--space-6);
+      flex-wrap: wrap;
+    }
+    .hero__meta-item {
+      font-size: var(--text-xs); color: rgba(255,255,255,0.4);
+    }
+    .hero__meta-item strong { color: rgba(255,255,255,0.7); font-weight: 600; }
+    .hero__dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+    .hero__toc {
+      margin-top: var(--space-10);
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: var(--space-4);
+    }
+    .hero__toc-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      text-decoration: none; color: white;
+      transition: background var(--transition), border-color var(--transition);
+    }
+    .hero__toc-card:hover { background: rgba(255,255,255,0.09); border-color: rgba(74,111,165,0.4); }
+    .hero__toc-card-num {
+      font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em;
+      color: var(--color-accent-muted); margin-bottom: var(--space-2);
+    }
+    .hero__toc-card-title {
+      font-size: var(--text-sm); font-weight: 600; color: white; margin-bottom: var(--space-1);
+    }
+    .hero__toc-card-desc { font-size: var(--text-xs); color: rgba(255,255,255,0.4); }
+
+    /* ─────────────────────────────────────────────────────
+       SECTION WRAPPERS
+    ───────────────────────────────────────────────────── */
+    .report-section {
+      padding: var(--space-20) 0;
+      border-bottom: 1px solid var(--color-divider);
+    }
+    .section-header {
+      margin-bottom: var(--space-12);
+    }
+    .section-label {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--color-accent);
+      margin-bottom: var(--space-4);
+    }
+    .section-label::before {
+      content: ''; width: 20px; height: 2px;
+      background: var(--color-accent); display: block;
+    }
+    .section-title {
+      font-size: var(--text-xl); font-weight: 700;
+      color: var(--color-navy); letter-spacing: -0.02em;
+      margin-bottom: var(--space-4);
+    }
+    [data-theme="dark"] .section-title { color: var(--color-text); }
+    .section-intro {
+      font-size: var(--text-base); color: var(--color-text-muted);
+      max-width: 64ch; line-height: 1.7;
+    }
+
+    /* ─────────────────────────────────────────────────────
+       EXECUTIVE SUMMARY
+    ───────────────────────────────────────────────────── */
+    .exec-summary {
+      background: var(--color-navy);
+      color: white;
+      border-radius: var(--radius-xl);
+      padding: var(--space-10) var(--space-12);
+      margin-bottom: var(--space-12);
+      position: relative; overflow: hidden;
+    }
+    [data-theme="dark"] .exec-summary { background: #141720; border: 1px solid var(--color-border); }
+    .exec-summary::before {
+      content: '';
+      position: absolute; top: 0; right: 0; width: 300px; height: 100%;
+      background: linear-gradient(to left, rgba(74,111,165,0.1), transparent);
+      pointer-events: none;
+    }
+    .exec-summary__label {
+      font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--color-accent-muted);
+      margin-bottom: var(--space-5);
+    }
+    .exec-summary__body {
+      font-size: var(--text-lg); font-weight: 300;
+      color: rgba(255,255,255,0.82); line-height: 1.7; max-width: 76ch;
+    }
+    .exec-summary__body strong { color: white; font-weight: 600; }
+    .exec-summary__kpis {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-6); margin-top: var(--space-8);
+    }
+    @media (max-width: 680px) { .exec-summary__kpis { grid-template-columns: 1fr; } }
+    .exec-kpi {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+    }
+    .exec-kpi__value {
+      font-size: var(--text-xl); font-weight: 700; color: white;
+      letter-spacing: -0.03em; margin-bottom: var(--space-1);
+    }
+    .exec-kpi__label { font-size: var(--text-xs); color: rgba(255,255,255,0.45); line-height: 1.4; }
+
+    /* ─────────────────────────────────────────────────────
+       CALLOUT BOXES
+    ───────────────────────────────────────────────────── */
+    .callout {
+      border-radius: var(--radius-lg);
+      padding: var(--space-5) var(--space-6);
+      margin: var(--space-6) 0;
+      display: flex; gap: var(--space-4);
+    }
+    .callout--info {
+      background: var(--color-accent-light);
+      border: 1px solid rgba(74,111,165,0.2);
+    }
+    .callout--success {
+      background: var(--color-success-bg);
+      border: 1px solid rgba(39,129,78,0.2);
+    }
+    .callout--warning {
+      background: var(--color-warning-bg);
+      border: 1px solid rgba(176,96,0,0.2);
+    }
+    .callout--purple {
+      background: var(--color-purple-bg);
+      border: 1px solid rgba(107,75,170,0.2);
+    }
+    .callout__icon { font-size: 1.2em; flex-shrink: 0; margin-top: 2px; }
+    .callout__body { flex: 1; }
+    .callout__title { font-weight: 700; font-size: var(--text-sm); margin-bottom: var(--space-1); }
+    .callout--info .callout__title { color: var(--color-accent); }
+    .callout--success .callout__title { color: var(--color-success); }
+    .callout--warning .callout__title { color: var(--color-warning); }
+    .callout--purple .callout__title { color: var(--color-purple); }
+    .callout__text { font-size: var(--text-sm); color: var(--color-text-muted); max-width: none; }
+
+    /* ─────────────────────────────────────────────────────
+       CARDS / PANELS
+    ───────────────────────────────────────────────────── */
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      box-shadow: var(--shadow-sm);
+    }
+    .card--elevated {
+      box-shadow: var(--shadow-md);
+    }
+    .card__title {
+      font-size: var(--text-sm); font-weight: 700;
+      color: var(--color-text); margin-bottom: var(--space-4);
+      display: flex; align-items: center; gap: var(--space-2);
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+    @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    /* ─────────────────────────────────────────────────────
+       BADGES / TAGS
+    ───────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center;
+      font-size: var(--text-xs); font-weight: 600;
+      padding: 2px var(--space-2);
+      border-radius: var(--radius-full);
+      letter-spacing: 0.02em;
+    }
+    .badge--navy    { background: var(--color-navy); color: white; }
+    .badge--accent  { background: var(--color-accent-light); color: var(--color-accent); border: 1px solid rgba(74,111,165,0.25); }
+    .badge--success { background: var(--color-success-bg); color: var(--color-success); }
+    .badge--warning { background: var(--color-warning-bg); color: var(--color-warning); }
+    .badge--error   { background: var(--color-error-bg); color: var(--color-error); }
+    .badge--purple  { background: var(--color-purple-bg); color: var(--color-purple); }
+    .badge--teal    { background: var(--color-teal-bg); color: var(--color-teal); }
+    .badge--orange  { background: var(--color-orange-bg); color: var(--color-orange); }
+    .badge--gray    { background: var(--color-surface-offset); color: var(--color-text-muted); }
+    [data-theme="dark"] .badge--navy { background: var(--color-accent); color: white; }
+
+    /* ─────────────────────────────────────────────────────
+       TABLES
+    ───────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; border-radius: var(--radius-xl); border: 1px solid var(--color-border); }
+    .data-table { width: 100%; background: var(--color-surface); }
+    .data-table thead tr {
+      background: var(--color-navy);
+      color: white;
+    }
+    [data-theme="dark"] .data-table thead tr { background: var(--color-surface-2); color: var(--color-text); }
+    .data-table thead th {
+      padding: var(--space-3) var(--space-4);
+      text-align: left; font-size: var(--text-xs);
+      font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      white-space: nowrap;
+    }
+    [data-theme="dark"] .data-table thead th { color: var(--color-text-muted); }
+    .data-table tbody tr {
+      border-bottom: 1px solid var(--color-divider);
+      transition: background var(--transition);
+    }
+    .data-table tbody tr:last-child { border-bottom: none; }
+    .data-table tbody tr:hover { background: var(--color-surface-2); }
+    .data-table td {
+      padding: var(--space-3) var(--space-4);
+      font-size: var(--text-sm);
+      vertical-align: top; line-height: 1.5;
+    }
+    .data-table td:first-child { font-weight: 600; white-space: nowrap; }
+    .data-table td p { max-width: none; }
+    .entity-name { font-family: var(--font-mono); font-size: 0.85em; color: var(--color-accent); }
+
+    /* ─────────────────────────────────────────────────────
+       CODE BLOCKS
+    ───────────────────────────────────────────────────── */
+    .code-block {
+      background: var(--color-navy);
+      color: #A8C0E0;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: 1.65;
+      border-radius: var(--radius-lg);
+      padding: var(--space-5) var(--space-6);
+      overflow-x: auto;
+      position: relative;
+      margin: var(--space-4) 0;
+    }
+    [data-theme="dark"] .code-block { background: #0A0C14; border: 1px solid var(--color-border); }
+    .code-block__label {
+      position: absolute; top: var(--space-3); right: var(--space-4);
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: rgba(168,192,224,0.35);
+    }
+    .code-kw  { color: #79B8FF; }
+    .code-str { color: #9ECBFF; }
+    .code-num { color: #B5E3B5; }
+    .code-cmt { color: #6A7F9C; font-style: italic; }
+    .code-type { color: #FFAB70; }
+    .code-prop { color: #88D8FF; }
+    .code-op   { color: #E8C48A; }
+    .inline-code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 1px 5px;
+      color: var(--color-accent);
+    }
+    [data-theme="dark"] .inline-code { background: #1A1E2A; }
+
+    /* ─────────────────────────────────────────────────────
+       USER JOURNEY STEPS
+    ───────────────────────────────────────────────────── */
+    .journey-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: var(--space-4); margin-top: var(--space-8);
+    }
+    .journey-step {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-5);
+      position: relative;
+      box-shadow: var(--shadow-sm);
+    }
+    .journey-step__num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--color-navy);
+      color: white;
+      font-size: var(--text-xs); font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: var(--space-3);
+      flex-shrink: 0;
+    }
+    [data-theme="dark"] .journey-step__num { background: var(--color-accent); }
+    .journey-step__actor {
+      font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--color-text-faint);
+      margin-bottom: var(--space-1);
+    }
+    .journey-step__title {
+      font-size: var(--text-sm); font-weight: 700;
+      color: var(--color-text); margin-bottom: var(--space-2);
+    }
+    .journey-step__desc {
+      font-size: var(--text-xs); color: var(--color-text-muted);
+      line-height: 1.55; max-width: none;
+    }
+    .journey-step__detail {
+      margin-top: var(--space-3); padding-top: var(--space-3);
+      border-top: 1px solid var(--color-divider);
+      font-size: var(--text-xs); color: var(--color-text-faint);
+      font-family: var(--font-mono);
+    }
+
+    /* ─────────────────────────────────────────────────────
+       STATE MACHINE DIAGRAMS
+    ───────────────────────────────────────────────────── */
+    .state-machine {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+      overflow-x: auto;
+    }
+    .state-machine__row {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 0;
+    }
+    .state-node {
+      display: flex; flex-direction: column; align-items: center;
+      gap: var(--space-1); flex-shrink: 0;
+    }
+    .state-node__pill {
+      font-size: var(--text-xs); font-weight: 600;
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-full);
+      white-space: nowrap; letter-spacing: 0.02em;
+    }
+    .state-node__label {
+      font-size: 10px; color: var(--color-text-faint);
+      text-align: center; max-width: 80px; line-height: 1.3;
+    }
+    .state-arrow {
+      font-size: var(--text-sm); color: var(--color-text-faint);
+      padding: 0 var(--space-2); flex-shrink: 0; margin-top: -14px;
+    }
+    .state-branch { display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+    .state-branch-row { display: flex; align-items: center; gap: 0; }
+
+    /* ─────────────────────────────────────────────────────
+       SEQUENCE DIAGRAMS (swimlane style)
+    ───────────────────────────────────────────────────── */
+    .sequence-diagram {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      margin: var(--space-8) 0;
+    }
+    .seq-header {
+      background: var(--color-navy);
+      display: grid;
+      padding: 0;
+    }
+    [data-theme="dark"] .seq-header { background: var(--color-surface-2); border-bottom: 1px solid var(--color-border); }
+    .seq-actor {
+      padding: var(--space-3) var(--space-4);
+      font-size: var(--text-xs); font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: rgba(255,255,255,0.7); text-align: center;
+      border-right: 1px solid rgba(255,255,255,0.06);
+    }
+    [data-theme="dark"] .seq-actor { color: var(--color-text-muted); border-right-color: var(--color-border); }
+    .seq-actor:last-child { border-right: none; }
+    .seq-body { padding: var(--space-4); }
+    .seq-step {
+      display: grid;
+      min-height: 44px;
+      align-items: start;
+      margin-bottom: var(--space-1);
+    }
+    .seq-step--alt { background: var(--color-surface-2); border-radius: var(--radius-md); }
+    .seq-cell {
+      padding: var(--space-2) var(--space-3);
+      font-size: var(--text-xs);
+      border-right: 1px dashed var(--color-border);
+      min-height: 44px;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .seq-cell:last-child { border-right: none; }
+    .seq-msg {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      background: var(--color-accent-light);
+      color: var(--color-accent);
+      border: 1px solid rgba(74,111,165,0.2);
+      border-radius: var(--radius-md);
+      padding: var(--space-1) var(--space-2);
+      font-size: 11px; font-weight: 600;
+      white-space: nowrap;
+    }
+    .seq-msg--return {
+      background: var(--color-success-bg);
+      color: var(--color-success);
+      border-color: rgba(39,129,78,0.2);
+    }
+    .seq-msg--event {
+      background: var(--color-purple-bg);
+      color: var(--color-purple);
+      border-color: rgba(107,75,170,0.2);
+    }
+    .seq-msg--error {
+      background: var(--color-error-bg);
+      color: var(--color-error);
+      border-color: rgba(176,48,96,0.2);
+    }
+    .seq-msg--warning {
+      background: var(--color-warning-bg);
+      color: var(--color-warning);
+      border-color: rgba(176,96,0,0.2);
+    }
+    .seq-note {
+      font-size: 10px; color: var(--color-text-faint);
+      font-style: italic; margin-top: 2px;
+    }
+    .seq-divider {
+      grid-column: 1 / -1;
+      padding: var(--space-2) var(--space-3);
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--color-text-faint);
+      background: var(--color-surface-offset);
+      border-radius: var(--radius-sm);
+      margin: var(--space-2) 0;
+    }
+    .seq-arrow { font-size: 14px; margin: 0 var(--space-1); }
+
+    /* ─────────────────────────────────────────────────────
+       DESIGN DECISION CARDS
+    ───────────────────────────────────────────────────── */
+    .decision-grid { display: flex; flex-direction: column; gap: var(--space-5); }
+    .decision-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-left: 4px solid var(--color-accent);
+      border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
+      padding: var(--space-6);
+      box-shadow: var(--shadow-sm);
+    }
+    .decision-card__header {
+      display: flex; align-items: flex-start; gap: var(--space-4);
+      margin-bottom: var(--space-4);
+    }
+    .decision-card__num {
+      width: 32px; height: 32px; flex-shrink: 0;
+      background: var(--color-navy); color: white;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--text-xs); font-weight: 800;
+    }
+    [data-theme="dark"] .decision-card__num { background: var(--color-accent); }
+    .decision-card__title {
+      font-size: var(--text-base); font-weight: 700;
+      color: var(--color-text); margin-bottom: var(--space-1);
+    }
+    .decision-card__subtitle {
+      font-size: var(--text-xs); color: var(--color-text-faint);
+      font-family: var(--font-mono);
+    }
+    .decision-card__body {
+      font-size: var(--text-sm); color: var(--color-text-muted);
+      line-height: 1.65; max-width: 80ch;
+    }
+    .decision-card__body p { max-width: none; margin-bottom: var(--space-3); }
+    .decision-card__body p:last-child { margin-bottom: 0; }
+    .decision-card__consequence {
+      margin-top: var(--space-4);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      display: flex; gap: var(--space-3);
+    }
+    .decision-card__consequence-label {
+      font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--color-accent);
+      white-space: nowrap; margin-top: 1px;
+    }
+    .decision-card__consequence-text {
+      font-size: var(--text-xs); color: var(--color-text-muted);
+      max-width: none; line-height: 1.55;
+    }
+
+    /* ─────────────────────────────────────────────────────
+       ENTITY MODEL CARDS
+    ───────────────────────────────────────────────────── */
+    .entity-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--space-5);
+    }
+    .entity-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .entity-card__header {
+      padding: var(--space-4) var(--space-5);
+      background: var(--color-navy);
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    [data-theme="dark"] .entity-card__header { background: var(--color-surface-2); border-bottom: 1px solid var(--color-border); }
+    .entity-card__name {
+      font-family: var(--font-mono); font-size: var(--text-sm);
+      font-weight: 600; color: #88D8FF; margin-bottom: var(--space-1);
+    }
+    [data-theme="dark"] .entity-card__name { color: var(--color-accent); }
+    .entity-card__role {
+      font-size: var(--text-xs); color: rgba(255,255,255,0.45); line-height: 1.4;
+    }
+    [data-theme="dark"] .entity-card__role { color: var(--color-text-faint); }
+    .entity-card__body { padding: var(--space-4) var(--space-5); }
+    .entity-card__fields { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+    .entity-card__field {
+      display: flex; align-items: baseline; gap: var(--space-3);
+      font-size: var(--text-xs);
+    }
+    .entity-card__field-name {
+      font-family: var(--font-mono); font-weight: 500;
+      color: var(--color-text); white-space: nowrap; min-width: 120px;
+    }
+    .entity-card__field-type {
+      color: var(--color-text-faint);
+    }
+    .entity-card__states {
+      margin-top: var(--space-4); padding-top: var(--space-4);
+      border-top: 1px solid var(--color-divider);
+    }
+    .entity-card__states-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--color-text-faint);
+      margin-bottom: var(--space-2);
+    }
+    .state-flow {
+      display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1);
+    }
+    .state-pill {
+      font-size: 10px; font-weight: 600;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      white-space: nowrap;
+    }
+    .state-arrow-sm { font-size: 10px; color: var(--color-text-faint); }
+
+    /* ─────────────────────────────────────────────────────
+       FEE FORMULA BOX
+    ───────────────────────────────────────────────────── */
+    .fee-formula {
+      background: var(--color-navy);
+      color: white;
+      border-radius: var(--radius-xl);
+      padding: var(--space-8) var(--space-10);
+      margin: var(--space-8) 0;
+    }
+    [data-theme="dark"] .fee-formula { background: #0A0C14; border: 1px solid var(--color-border); }
+    .fee-formula__title {
+      font-size: var(--text-lg); font-weight: 700; color: white;
+      margin-bottom: var(--space-6);
+    }
+    .fee-term {
+      display: flex; align-items: baseline; gap: var(--space-3);
+      font-size: var(--text-sm); margin-bottom: var(--space-4);
+    }
+    .fee-term__op { color: rgba(255,255,255,0.35); font-size: var(--text-base); min-width: 20px; text-align: center; }
+    .fee-term__val { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 700; color: #B5E3B5; }
+    .fee-term__label { color: rgba(255,255,255,0.55); }
+    .fee-divider { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: var(--space-4) 0; }
+    .fee-total { display: flex; align-items: baseline; gap: var(--space-3); }
+    .fee-total__eq { color: rgba(255,255,255,0.35); font-size: var(--text-base); min-width: 20px; text-align: center; }
+    .fee-total__val { font-family: var(--font-mono); font-size: var(--text-xl); font-weight: 700; color: #79B8FF; }
+    .fee-total__label { color: rgba(255,255,255,0.55); font-size: var(--text-sm); }
+    .fee-example {
+      margin-top: var(--space-8); background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+    }
+    .fee-example__title {
+      font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--color-accent-muted);
+      margin-bottom: var(--space-4);
+    }
+    .fee-example__row {
+      display: flex; justify-content: space-between;
+      font-size: var(--text-xs); padding: var(--space-2) 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .fee-example__row:last-child { border-bottom: none; font-weight: 700; color: #79B8FF; }
+    .fee-example__row-label { color: rgba(255,255,255,0.55); }
+    .fee-example__row-val { font-family: var(--font-mono); color: white; }
+
+    /* ─────────────────────────────────────────────────────
+       PRINCIPLE LIST
+    ───────────────────────────────────────────────────── */
+    .principles-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: var(--space-5);
+    }
+    .principle-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      padding: var(--space-5);
+      box-shadow: var(--shadow-sm);
+    }
+    .principle-card__icon {
+      width: 36px; height: 36px;
+      background: var(--color-accent-light);
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; margin-bottom: var(--space-4);
+    }
+    .principle-card__title {
+      font-size: var(--text-sm); font-weight: 700; color: var(--color-text);
+      margin-bottom: var(--space-2);
+    }
+    .principle-card__desc {
+      font-size: var(--text-xs); color: var(--color-text-muted);
+      line-height: 1.55; max-width: none;
+    }
+
+    /* ─────────────────────────────────────────────────────
+       ROADMAP SECTION
+    ───────────────────────────────────────────────────── */
+    .roadmap-track {
+      position: relative;
+      padding-left: var(--space-8);
+    }
+    .roadmap-track::before {
+      content: '';
+      position: absolute; left: 11px; top: 8px; bottom: 8px;
+      width: 2px; background: var(--color-divider);
+    }
+    .roadmap-item {
+      position: relative; margin-bottom: var(--space-8);
+    }
+    .roadmap-item::before {
+      content: '';
+      position: absolute; left: calc(-1 * var(--space-8) + 6px); top: 8px;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--color-accent);
+      border: 2px solid var(--color-bg);
+      box-shadow: 0 0 0 2px var(--color-accent);
+    }
+    .roadmap-item--future::before { background: var(--color-text-faint); box-shadow: 0 0 0 2px var(--color-text-faint); }
+    .roadmap-item__phase {
+      font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--color-accent); margin-bottom: var(--space-2);
+    }
+    .roadmap-item--future .roadmap-item__phase { color: var(--color-text-faint); }
+    .roadmap-item__title { font-size: var(--text-base); font-weight: 700; color: var(--color-text); margin-bottom: var(--space-2); }
+    .roadmap-item__desc { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 64ch; }
+
+    /* ─────────────────────────────────────────────────────
+       FOOTER
+    ───────────────────────────────────────────────────── */
+    .site-footer {
+      background: var(--color-navy);
+      color: rgba(255,255,255,0.35);
+      padding: var(--space-10) 0;
+      margin-top: var(--space-16);
+    }
+    [data-theme="dark"] .site-footer { background: #0A0C14; border-top: 1px solid var(--color-border); }
+    .site-footer__inner {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: var(--space-4);
+    }
+    .site-footer p { font-size: var(--text-xs); max-width: none; }
+    .site-footer .footer-mark {
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      color: rgba(255,255,255,0.2);
+    }
+
+    /* ─────────────────────────────────────────────────────
+       SECTION DIVIDER
+    ───────────────────────────────────────────────────── */
+    .section-divider {
+      background: var(--color-navy);
+      color: white;
+      padding: var(--space-8) 0;
+    }
+    [data-theme="dark"] .section-divider { background: #0A0C14; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+    .section-divider__inner {
+      display: flex; align-items: center; gap: var(--space-4);
+    }
+    .section-divider__num {
+      width: 48px; height: 48px; flex-shrink: 0;
+      background: rgba(74,111,165,0.3);
+      border: 1px solid rgba(74,111,165,0.4);
+      border-radius: var(--radius-lg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--text-lg); font-weight: 800;
+      color: white;
+    }
+    .section-divider__title {
+      font-size: var(--text-xl); font-weight: 700; color: white;
+      letter-spacing: -0.02em;
+    }
+    .section-divider__sub {
+      font-size: var(--text-sm); color: rgba(255,255,255,0.45); margin-top: var(--space-1);
+    }
+
+    /* ─────────────────────────────────────────────────────
+       MISC UTILITIES
+    ───────────────────────────────────────────────────── */
+    .mt-4  { margin-top: var(--space-4); }
+    .mt-6  { margin-top: var(--space-6); }
+    .mt-8  { margin-top: var(--space-8); }
+    .mt-12 { margin-top: var(--space-12); }
+    .mb-4  { margin-bottom: var(--space-4); }
+    .mb-6  { margin-bottom: var(--space-6); }
+    .mb-8  { margin-bottom: var(--space-8); }
+    .space-y-4 > * + * { margin-top: var(--space-4); }
+    .space-y-6 > * + * { margin-top: var(--space-6); }
+    .text-sm  { font-size: var(--text-sm); }
+    .text-xs  { font-size: var(--text-xs); }
+    .text-muted { color: var(--color-text-muted); }
+    .text-faint { color: var(--color-text-faint); }
+    .font-mono { font-family: var(--font-mono); }
+    .font-bold  { font-weight: 700; }
+    .flex { display: flex; }
+    .flex-wrap { flex-wrap: wrap; }
+    .items-center { align-items: center; }
+    .gap-2 { gap: var(--space-2); }
+    .gap-3 { gap: var(--space-3); }
+    .gap-4 { gap: var(--space-4); }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     STICKY NAV
+══════════════════════════════════════════════════════ -->
+<header class="site-header">
+  <div class="site-header__inner">
+    <div class="site-header__logo">
+      <div class="site-header__logo-mark">RLP</div>
+      <div>
+        <div class="site-header__title">Reverse Logistics Platform</div>
+        <div class="site-header__subtitle">Architecture Report · Internal</div>
+      </div>
+    </div>
+    <nav class="header-nav">
+      <a href="#section-product">Product Vision</a>
+      <a href="#section-journey">User Journey</a>
+      <a href="#section-technical">Technical</a>
+      <a href="#section-entities">Entities</a>
+      <a href="#section-diagrams">Diagrams</a>
+      <a href="#section-decisions">Decisions</a>
+    </nav>
+    <button class="theme-toggle" data-theme-toggle aria-label="Switch to dark mode">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="container--wide hero__inner">
+    <div class="hero__eyebrow">
+      <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="4"/></svg>
+      Architecture Proposal · Codename RLP
+    </div>
+    <h1 class="hero__heading">
+      Returns &amp; Reverse Logistics<br/>
+      <span>Platform Architecture</span>
+    </h1>
+    <p class="hero__tagline">
+      Doorstep returns and exchanges integrated into the delivery platform — multi-merchant, one pickup, one Dasher, one QR code.
+    </p>
+    <div class="hero__meta">
+      <span class="hero__meta-item"><strong>Status:</strong> Proposal</span>
+      <div class="hero__dot"></div>
+      <span class="hero__meta-item"><strong>Audience:</strong> Engineering Leadership</span>
+      <div class="hero__dot"></div>
+      <span class="hero__meta-item"><strong>Version:</strong> 1.0</span>
+      <div class="hero__dot"></div>
+      <span class="hero__meta-item"><strong>Classification:</strong> Internal Confidential</span>
+    </div>
+
+    <div class="hero__toc">
+      <a href="#section-product" class="hero__toc-card">
+        <div class="hero__toc-card-num">PART I</div>
+        <div class="hero__toc-card-title">Product Vision &amp; User Journey</div>
+        <div class="hero__toc-card-desc">Problem, differentiators, consumer, Dasher, and merchant flows</div>
+      </a>
+      <a href="#section-technical" class="hero__toc-card">
+        <div class="hero__toc-card-num">PART II</div>
+        <div class="hero__toc-card-title">Technical Architecture</div>
+        <div class="hero__toc-card-desc">Entity model, state machines, sequence diagrams, design decisions</div>
+      </a>
+      <a href="#section-decisions" class="hero__toc-card">
+        <div class="hero__toc-card-num">PART III</div>
+        <div class="hero__toc-card-title">Design Decisions</div>
+        <div class="hero__toc-card-desc">8 key architectural choices and their rationale</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════
+     PART I — PRODUCT VISION
+══════════════════════════════════════════════════════ -->
+<div class="section-divider" id="section-product">
+  <div class="container--wide section-divider__inner">
+    <div class="section-divider__num">I</div>
+    <div>
+      <div class="section-divider__title">Product Vision &amp; User Journey</div>
+      <div class="section-divider__sub">Problem framing, key differentiators, actor journeys</div>
+    </div>
+  </div>
+</div>
+
+<!-- Executive Summary -->
+<section class="report-section">
+  <div class="container--wide">
+    <div class="exec-summary">
+      <div class="exec-summary__label">Executive Summary</div>
+      <p class="exec-summary__body">
+        RLP (Reverse Logistics Platform) enables consumers to schedule doorstep returns and exchanges across <strong>multiple merchants in a single pickup session</strong> — one Dasher, one service fee, one QR code. Unlike existing solutions (Happy Returns, in-store drop-offs), the Dasher is <strong>pre-assigned to specific items before arrival</strong>, creating a structured handover that shifts liability precisely at scan time. A variable service fee — charged at commit, separate from item refunds — aligns incentives: consumers pay for the pickup service regardless of merchant inspection outcome, and merchants receive only items they've agreed to accept through their own return policies.
+      </p>
+      <div class="exec-summary__kpis">
+        <div class="exec-kpi">
+          <div class="exec-kpi__value">1 QR</div>
+          <div class="exec-kpi__label">Per consumer session — resolves to multiple FxOrders behind the scenes</div>
+        </div>
+        <div class="exec-kpi">
+          <div class="exec-kpi__value">N Merchants</div>
+          <div class="exec-kpi__label">Multi-merchant returns in one pickup, any Dasher routing</div>
+        </div>
+        <div class="exec-kpi">
+          <div class="exec-kpi__value">Fee at Commit</div>
+          <div class="exec-kpi__label">Service fee charged upfront — independent of inspection outcome</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Problem Statement -->
+    <div class="section-header">
+      <div class="section-label">Problem Statement</div>
+      <h2 class="section-title">Returns Are Broken for Everyone</h2>
+      <p class="section-intro">
+        E-commerce returns are expensive, friction-heavy, and poorly instrumented. Consumers haul boxes to UPS stores; merchants lose visibility after handoff; platforms generate no revenue from the reverse flow.
+      </p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card card--elevated">
+        <div class="card__title">
+          <span style="color:var(--color-error)">●</span> Consumer Pain
+        </div>
+        <p class="text-sm text-muted" style="max-width:none">Returning items from multiple merchants requires multiple trips, multiple labels, multiple windows. Consumers abandon eligible returns because the friction cost exceeds the refund value.</p>
+        <div class="callout callout--warning mt-4" style="margin:var(--space-4) 0 0">
+          <div class="callout__body">
+            <p class="callout__text"><strong>~30% of online purchases</strong> result in a return. Most are never completed.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card card--elevated">
+        <div class="card__title">
+          <span style="color:var(--color-warning)">●</span> Merchant Pain
+        </div>
+        <p class="text-sm text-muted" style="max-width:none">Unstructured returns create fraud exposure. Items arrive without pre-verification. Inspections are manual and asynchronous. Return policy enforcement is inconsistent downstream.</p>
+        <div class="callout callout--warning mt-4" style="margin:var(--space-4) 0 0">
+          <div class="callout__body">
+            <p class="callout__text">Return fraud costs merchants <strong>$100B+ annually</strong> in the US. Policy enforcement at inspection is the only defense.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card card--elevated">
+        <div class="card__title">
+          <span style="color:var(--color-accent)">●</span> Platform Opportunity
+        </div>
+        <p class="text-sm text-muted" style="max-width:none">The delivery network is already deployed. Dashers make millions of dropoffs daily. The reverse flow — pickup from consumer, delivery to merchant — requires only incremental infrastructure and creates a new recurring revenue stream.</p>
+        <div class="callout callout--info mt-4" style="margin:var(--space-4) 0 0">
+          <div class="callout__body">
+            <p class="callout__text">Service fee per return = incremental platform revenue with no consumer subsidy.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Differentiators vs Happy Returns -->
+<section class="report-section">
+  <div class="container--wide">
+    <div class="section-header">
+      <div class="section-label">Competitive Differentiation</div>
+      <h2 class="section-title">Why RLP Is Different from Happy Returns</h2>
+      <p class="section-intro">
+        Happy Returns uses drop-off hubs and batch aggregation. RLP uses a pre-assigned Dasher network for doorstep pickup. The structural difference changes the entire liability and state machine design.
+      </p>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th>Happy Returns</th>
+            <th>RLP (This Proposal)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Pickup model</td>
+            <td>Consumer drops off at retail hub</td>
+            <td>Dasher picks up at consumer's door</td>
+          </tr>
+          <tr>
+            <td>Dasher assignment</td>
+            <td>N/A — no courier</td>
+            <td><strong>Pre-assigned before arrival</strong> — knows items upfront</td>
+          </tr>
+          <tr>
+            <td>QR code role</td>
+            <td>Discovery mechanism — staff looks up the return</td>
+            <td><strong>Handover confirmation artifact</strong> — backend resolves FxOrder from (DasherID + QR)</td>
+          </tr>
+          <tr>
+            <td>Multi-merchant</td>
+            <td>Yes, via hub aggregation</td>
+            <td><strong>Yes, in one doorstep session</strong> — items from any merchants in one scan</td>
+          </tr>
+          <tr>
+            <td>Service fee</td>
+            <td>Baked into merchant contract</td>
+            <td><strong>Variable, consumer-facing</strong>, charged separately at commit time</td>
+          </tr>
+          <tr>
+            <td>Liability shift</td>
+            <td>At hub receipt</td>
+            <td><strong>At QR scan per FxOrder</strong> — precise to the Dasher task</td>
+          </tr>
+          <tr>
+            <td>Inspection</td>
+            <td>Centralized hub (Happy Returns model)</td>
+            <td>Merchant-side (MVP); hub as future roadmap</td>
+          </tr>
+          <tr>
+            <td>Platform network moat</td>
+            <td>None — any carrier can integrate</td>
+            <td><strong>Dasher network</strong> — embedded in delivery app, reuses routing and dispatch</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout--info mt-8">
+      <div class="callout__icon">🎯</div>
+      <div class="callout__body">
+        <div class="callout__title">Core Insight: QR = Confirmation, Not Discovery</div>
+        <p class="callout__text">In Happy Returns, the QR tells staff what the return is. In RLP, the Dasher already knows their items — the QR scan is the moment liability shifts from consumer to Dasher. This inversion is the architectural foundation for how <code class="inline-code">ReturnFxOrder</code> and <code class="inline-code">ConsumerReturn</code> are decoupled.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- User Journey -->
+<section class="report-section" id="section-journey">
+  <div class="container--wide">
+    <div class="section-header">
+      <div class="section-label">User Journeys</div>
+      <h2 class="section-title">Three Actors, One Return Session</h2>
+      <p class="section-intro">
+        Three actors interact with RLP: the consumer initiating the return, the Dasher executing pickup, and the merchant completing inspection. Their journeys overlap around the QR handover and inspection events.
+      </p>
+    </div>
+
+    <!-- Consumer Journey -->
+    <h3 style="font-size:var(--text-base);font-weight:700;color:var(--color-text);margin-bottom:var(--space-6);display:flex;align-items:center;gap:var(--space-3);">
+      <span class="badge badge--navy">Consumer</span> Initiation to Refund
+    </h3>
+    <div class="journey-grid">
+      <div class="journey-step">
+        <div class="journey-step__num">1</div>
+        <div class="journey-step__actor">Consumer · App</div>
+        <div class="journey-step__title">Browse Order History</div>
+        <div class="journey-step__desc">Consumer opens Order History and sees returnable items annotated with eligibility status — eligible, ineligible (policy), ineligible (window), or requires review. Same surface as delivery order history.</div>
+        <div class="journey-step__detail">EligibilityCheck.status per line item</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">2</div>
+        <div class="journey-step__actor">Consumer · App</div>
+        <div class="journey-step__title">Select Items &amp; Reasons</div>
+        <div class="journey-step__desc">Consumer selects items across multiple orders and merchants. For each item: return reason + refund method (original payment, store credit, exchange). Items accumulate in a "return cart."</div>
+        <div class="journey-step__detail">ConsumerReturn → DRAFT</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">3</div>
+        <div class="journey-step__actor">Consumer · App</div>
+        <div class="journey-step__title">Review ReturnQuote</div>
+        <div class="journey-step__desc">Full quote screen shows item refund amounts (full historical value) and the variable service fee as a separate line. Consumer sees exactly what they'll pay and what they'll get back.</div>
+        <div class="journey-step__detail">ServiceFeeBreakdown rendered; fee shown separately</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">4</div>
+        <div class="journey-step__actor">Consumer · Payment</div>
+        <div class="journey-step__title">Commit &amp; Pay Service Fee</div>
+        <div class="journey-step__desc">Consumer confirms. Service fee is charged immediately. ConsumerReturn transitions to COMMITTED. QR code is generated and stored. ReturnOrder and ReturnFxOrder(s) are created in the background.</div>
+        <div class="journey-step__detail">MoneyMovement SERVICE_FEE → CAPTURED</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">5</div>
+        <div class="journey-step__actor">Consumer · Wait</div>
+        <div class="journey-step__title">Pickup Scheduled</div>
+        <div class="journey-step__desc">Platform schedules Dasher dispatch. ConsumerReturn → PICKUP_SCHEDULED. Consumer receives QR code in their Return History — accessible just like order receipts.</div>
+        <div class="journey-step__detail">ConsumerReturn → PICKUP_SCHEDULED</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">6</div>
+        <div class="journey-step__actor">Consumer · Doorstep</div>
+        <div class="journey-step__title">Dasher Arrives, QR Shown</div>
+        <div class="journey-step__desc">Consumer shows QR at the door. Dasher scans — backend resolves DasherID + QR to their specific FxOrder items. Items go IN_TRANSIT. Liability has shifted.</div>
+        <div class="journey-step__detail">ItemReturn → IN_TRANSIT</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">7</div>
+        <div class="journey-step__actor">Consumer · Async</div>
+        <div class="journey-step__title">Merchant Inspection</div>
+        <div class="journey-step__desc">Merchant receives items and inspects. Consumer waits. Accepted items trigger C&amp;R refund. Rejected items are reversed. Consumer sees status in Return History.</div>
+        <div class="journey-step__detail">InspectionResult ACCEPTED | REJECTED</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">8</div>
+        <div class="journey-step__actor">Consumer · Refund</div>
+        <div class="journey-step__title">Settled</div>
+        <div class="journey-step__desc">All items resolved. ConsumerReturn → SETTLED (all accepted) or PARTIALLY_SETTLED (some rejected). Consumer sees final outcome in Return History. Service fee is non-refundable regardless.</div>
+        <div class="journey-step__detail">ConsumerReturn → SETTLED / PARTIALLY_SETTLED</div>
+      </div>
+    </div>
+
+    <!-- Dasher Journey -->
+    <h3 class="mt-12" style="font-size:var(--text-base);font-weight:700;color:var(--color-text);margin-bottom:var(--space-6);display:flex;align-items:center;gap:var(--space-3);">
+      <span class="badge badge--accent">Dasher</span> Dispatch to Delivery
+    </h3>
+    <div class="journey-grid">
+      <div class="journey-step">
+        <div class="journey-step__num">1</div>
+        <div class="journey-step__actor">Dasher · Dispatch</div>
+        <div class="journey-step__title">FxOrder Assignment</div>
+        <div class="journey-step__desc">Dasher receives a return pickup task in the Dasher app. The task shows the consumer's address and the specific items they'll pick up — names, photos, and count. No surprises at the door.</div>
+        <div class="journey-step__detail">ReturnFxOrder → ASSIGNED</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">2</div>
+        <div class="journey-step__actor">Dasher · En Route</div>
+        <div class="journey-step__title">Navigate to Consumer</div>
+        <div class="journey-step__desc">Standard navigation flow. Dasher app shows item checklist for the pickup. Consumer is notified "Dasher is on the way." Both parties see each other's location.</div>
+        <div class="journey-step__detail">Notification to consumer: PICKUP_SCHEDULED</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">3</div>
+        <div class="journey-step__actor">Dasher · Pickup</div>
+        <div class="journey-step__title">Scan QR Code</div>
+        <div class="journey-step__desc">Dasher opens scanner, consumer shows QR. Backend resolves (DasherID + QR token) → FxOrder. Dasher confirms items received. Each item's state transitions to IN_TRANSIT. This is the liability shift moment.</div>
+        <div class="journey-step__detail">ReturnFxOrder → PICKED_UP · ItemReturn → IN_TRANSIT</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">4</div>
+        <div class="journey-step__actor">Dasher · Delivery</div>
+        <div class="journey-step__title">Deliver to Merchant</div>
+        <div class="journey-step__desc">Dasher navigates to merchant location. On delivery confirmation, ReturnFxOrder → DELIVERED. Merchant is notified. Items await inspection. Future: Dasher may deliver to centralized hub instead.</div>
+        <div class="journey-step__detail">ReturnFxOrder → DELIVERED · deliveryDestination: 'merchant' | 'hub'</div>
+      </div>
+    </div>
+
+    <!-- Merchant Journey -->
+    <h3 class="mt-12" style="font-size:var(--text-base);font-weight:700;color:var(--color-text);margin-bottom:var(--space-6);display:flex;align-items:center;gap:var(--space-3);">
+      <span class="badge badge--success">Merchant</span> Receipt to Settlement
+    </h3>
+    <div class="journey-grid">
+      <div class="journey-step">
+        <div class="journey-step__num">1</div>
+        <div class="journey-step__actor">Merchant · Receipt</div>
+        <div class="journey-step__title">Items Arrive at Store</div>
+        <div class="journey-step__desc">Merchant receives notification that a return delivery is arriving. Items are associated with specific CxOrders. Merchant has pre-committed to their return policy (encoded in EligibilityCheck).</div>
+        <div class="journey-step__detail">ReturnFxOrder → DELIVERED</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">2</div>
+        <div class="journey-step__actor">Merchant · Inspection</div>
+        <div class="journey-step__title">Inspect Each Item</div>
+        <div class="journey-step__desc">Merchant inspects each item against their return policy — condition, original packaging, tags. Per-item accept or reject decision. Rejection with documented reason.</div>
+        <div class="journey-step__detail">ItemReturn → INSPECTING · InspectionResult created</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">3</div>
+        <div class="journey-step__actor">Merchant · Accept</div>
+        <div class="journey-step__title">Accept → Refund Triggered</div>
+        <div class="journey-step__desc">Accepted items trigger C&amp;R (Charge and Refund) events against the original CxOrder. Refund amount = historicalValue from original purchase. No deduction for service fee. MoneyMovement ITEM_REFUND → SETTLED.</div>
+        <div class="journey-step__detail">InspectionResult ACCEPTED → ITEM_REFUND → SETTLED</div>
+      </div>
+      <div class="journey-step">
+        <div class="journey-step__num">4</div>
+        <div class="journey-step__actor">Merchant · Reject</div>
+        <div class="journey-step__title">Reject → Refund Reversed</div>
+        <div class="journey-step__desc">Rejected items trigger reversal of the pending ITEM_REFUND. Consumer loses item value. Merchant disposes of or returns item. Service fee is never reversed — consumer paid for the Dasher's time, not the outcome.</div>
+        <div class="journey-step__detail">InspectionResult REJECTED → MoneyMovement → REVERSED</div>
+      </div>
+    </div>
+
+    <!-- Service Fee Rationale -->
+    <div class="callout callout--purple mt-12">
+      <div class="callout__icon">💡</div>
+      <div class="callout__body">
+        <div class="callout__title">Why the Service Fee Is Non-Refundable by Design</div>
+        <p class="callout__text">The service fee is payment for the <em>logistics service</em> — the Dasher's time, the routing, and the platform infrastructure. It is not an escrow for the item value. Charging it at commit (before pickup, before inspection) aligns incentives: consumers who initiate returns complete them; Dashers are paid regardless of merchant decisions; merchants aren't penalized for legitimate rejections. This is the same model as a delivery fee being non-refundable if the restaurant closes after order placement.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════
+     PART II — TECHNICAL ARCHITECTURE
+══════════════════════════════════════════════════════ -->
+<div class="section-divider" id="section-technical">
+  <div class="container--wide section-divider__inner">
+    <div class="section-divider__num">II</div>
+    <div>
+      <div class="section-divider__title">Technical Architecture</div>
+      <div class="section-divider__sub">Entity model, state machines, sequence diagrams</div>
+    </div>
+  </div>
+</div>
+
+<!-- Entity Model Overview -->
+<section class="report-section" id="section-entities">
+  <div class="container--wide">
+    <div class="section-header">
+      <div class="section-label">Entity Model</div>
+      <h2 class="section-title">Core Domain Entities</h2>
+      <p class="section-intro">
+        RLP introduces a set of purpose-built entities layered onto the existing order infrastructure. <code class="inline-code">CxOrder</code> and <code class="inline-code">ReturnOrder</code> share a polymorphic Order abstraction. Consumer-facing state (<code class="inline-code">ConsumerReturn</code>) is fully decoupled from operational execution (<code class="inline-code">ReturnOrder</code>, <code class="inline-code">ReturnFxOrder</code>).
+      </p>
+    </div>
+
+    <!-- Polymorphic Order callout -->
+    <div class="callout callout--info mb-8">
+      <div class="callout__icon">🔗</div>
+      <div class="callout__body">
+        <div class="callout__title">Polymorphic Order: CxOrder and ReturnOrder as Siblings</div>
+        <p class="callout__text"><code class="inline-code">CxOrder</code> (a purchase) and <code class="inline-code">ReturnOrder</code> both implement the Order type — distinguished by <code class="inline-code">orderType: 'purchase' | 'return'</code>. This enables unified order management, consistent audit trails, and shared tooling (fraud, analytics, support tooling) across both directions of commerce.</p>
+      </div>
+    </div>
+
+    <!-- Entity Cards -->
+    <div class="entity-grid">
+
+      <!-- CxOrder -->
+      <div class="entity-card">
+        <div class="entity-card__header">
+          <div>
+            <div class="entity-card__name">CxOrder</div>
+            <div class="entity-card__role">Immutable purchase record. Source of truth for refund amounts.</div>
+          </div>
+          <span class="badge badge--accent">Existing</span>
+        </div>
+        <div class="entity-card__body">
+          <ul class="entity-card__fields">
+            <li class="entity-card__field"><span class="entity-card__field-name">id</span><span class="entity-card__field-type">UUID</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">orderType</span><span class="entity-card__field-type">'purchase'</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">lineItems[]</span><span class="entity-card__field-type">LineItem (immutable)</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">historicalValue</span><span class="entity-card__field-type">Money — refund basis</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">merchantId</span><span class="entity-card__field-type">UUID</span></li>
+          </ul>
+          <div class="entity-card__states">
+            <div class="entity-card__states-label">Note</div>
+            <p style="font-size:10px;color:var(--color-text-faint);max-width:none">Never modified after creation. Refund amounts always derived from historicalValue on this record.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ConsumerReturn -->
+      <div class="entity-card">
+        <div class="entity-card__header">
+          <div>
+            <div class="entity-card__name">ConsumerReturn</div>
+            <div class="entity-card__role">Consumer session. Owns QR, service fee, item selections. Consumer-facing state.</div>
+          </div>
+          <span class="badge badge--navy">New</span>
+        </div>
+        <div class="entity-card__body">
+          <ul class="entity-card__fields">
+            <li class="entity-card__field"><span class="entity-card__field-name">id</span><span class="entity-card__field-type">UUID</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">consumerId</span><span class="entity-card__field-type">UUID</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">qrToken</span><span class="entity-card__field-type">string — generated at COMMIT</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">serviceFeeId</span><span class="entity-card__field-type">→ ServiceFeeBreakdown</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">itemReturns[]</span><span class="entity-card__field-type">→ ItemReturn[]</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">returnOrderId</span><span class="entity-card__field-type">→ ReturnOrder</span></li>
+          </ul>
+          <div class="entity-card__states">
+            <div class="entity-card__states-label">States</div>
+            <div class="state-flow">
+              <span class="state-pill badge badge--gray">DRAFT</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--accent">COMMITTED</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--teal">PICKUP_SCHED</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--warning">PART_PICKUP</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--accent">PICKED_UP</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--purple">INSPECTING</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--warning">PART_SETTLED</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--success">SETTLED</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ReturnQuote -->
+      <div class="entity-card">
+        <div class="entity-card__header">
+          <div>
+            <div class="entity-card__name">ReturnQuote</div>
+            <div class="entity-card__role">Financial preview shown pre-commit. Service fee separate from refunds.</div>
+          </div>
+          <span class="badge badge--navy">New</span>
+        </div>
+        <div class="entity-card__body">
+          <ul class="entity-card__fields">
+            <li class="entity-card__field"><span class="entity-card__field-name">consumerReturnId</span><span class="entity-card__field-type">→ ConsumerReturn</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">serviceFee</span><span class="entity-card__field-type">Money (shown separately)</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">itemRefunds[]</span><span class="entity-card__field-type">{ itemId, amount, method }</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">totalRefundable</span><span class="entity-card__field-type">Money (sum of items)</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">expiresAt</span><span class="entity-card__field-type">timestamp</span></li>
+          </ul>
+          <div class="entity-card__states">
+            <div class="entity-card__states-label">Note</div>
+            <p style="font-size:10px;color:var(--color-text-faint);max-width:none">Quote is ephemeral — expires if not committed. Committed quote becomes the source of truth for all MoneyMovementEvents.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ReturnOrder -->
+      <div class="entity-card">
+        <div class="entity-card__header">
+          <div>
+            <div class="entity-card__name">ReturnOrder</div>
+            <div class="entity-card__role">Operational peer to CxOrder. Owns fulfillment. orderType: 'return'.</div>
+          </div>
+          <span class="badge badge--navy">New</span>
+        </div>
+        <div class="entity-card__body">
+          <ul class="entity-card__fields">
+            <li class="entity-card__field"><span class="entity-card__field-name">id</span><span class="entity-card__field-type">UUID</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">orderType</span><span class="entity-card__field-type">'return'</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">consumerReturnId</span><span class="entity-card__field-type">→ ConsumerReturn</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">fxOrders[]</span><span class="entity-card__field-type">→ ReturnFxOrder[]</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">pickupAddress</span><span class="entity-card__field-type">Address</span></li>
+          </ul>
+          <div class="entity-card__states">
+            <div class="entity-card__states-label">Relationship</div>
+            <p style="font-size:10px;color:var(--color-text-faint);max-width:none">1:1 with ConsumerReturn. May own 1–N ReturnFxOrders depending on routing/capacity decisions.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ReturnFxOrder -->
+      <div class="entity-card">
+        <div class="entity-card__header">
+          <div>
+            <div class="entity-card__name">ReturnFxOrder</div>
+            <div class="entity-card__role">One Dasher task. NOT partitioned by merchant. Owns Dasher assignment.</div>
+          </div>
+          <span class="badge badge--navy">New</span>
+        </div>
+        <div class="entity-card__body">
+          <ul class="entity-card__fields">
+            <li class="entity-card__field"><span class="entity-card__field-name">id</span><span class="entity-card__field-type">UUID</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">dasherId</span><span class="entity-card__field-type">UUID — pre-assigned</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">itemReturns[]</span><span class="entity-card__field-type">→ ItemReturn[]</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">deliveryDestination</span><span class="entity-card__field-type">'merchant' | 'hub'</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">merchantId</span><span class="entity-card__field-type">UUID (delivery target)</span></li>
+          </ul>
+          <div class="entity-card__states">
+            <div class="entity-card__states-label">States</div>
+            <div class="state-flow">
+              <span class="state-pill badge badge--gray">CREATED</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--accent">ASSIGNED</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--teal">PICKED_UP</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--warning">DELIVERED</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--success">INSPECTION_COMPLETE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ItemReturn -->
+      <div class="entity-card">
+        <div class="entity-card__header">
+          <div>
+            <div class="entity-card__name">ItemReturn</div>
+            <div class="entity-card__role">Unit of money movement. One C&amp;R per item against original CxOrder.</div>
+          </div>
+          <span class="badge badge--navy">New</span>
+        </div>
+        <div class="entity-card__body">
+          <ul class="entity-card__fields">
+            <li class="entity-card__field"><span class="entity-card__field-name">cxOrderId</span><span class="entity-card__field-type">→ CxOrder</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">lineItemId</span><span class="entity-card__field-type">UUID</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">historicalValue</span><span class="entity-card__field-type">Money (immutable snapshot)</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">refundMethod</span><span class="entity-card__field-type">original_payment | store_credit | exchange</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">returnReason</span><span class="entity-card__field-type">enum</span></li>
+          </ul>
+          <div class="entity-card__states">
+            <div class="entity-card__states-label">States</div>
+            <div class="state-flow">
+              <span class="state-pill badge badge--gray">PENDING_PICKUP</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--teal">IN_TRANSIT</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--accent">DELIVERED</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--warning">INSPECTING</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--success">ACCEPTED</span>
+              <span class="state-arrow-sm">/</span>
+              <span class="state-pill badge badge--error">REJECTED</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--success">REFUNDED</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--navy">COMPLETED</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EligibilityCheck -->
+      <div class="entity-card">
+        <div class="entity-card__header">
+          <div>
+            <div class="entity-card__name">EligibilityCheck</div>
+            <div class="entity-card__role">Per line item. Merchant policy + item policy + consumer behavior (fraud vector).</div>
+          </div>
+          <span class="badge badge--navy">New</span>
+        </div>
+        <div class="entity-card__body">
+          <ul class="entity-card__fields">
+            <li class="entity-card__field"><span class="entity-card__field-name">lineItemId</span><span class="entity-card__field-type">UUID</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">merchantPolicyId</span><span class="entity-card__field-type">→ MerchantReturnPolicy</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">consumerBehavior</span><span class="entity-card__field-type">returnRate, monthlyReturnValue</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">status</span><span class="entity-card__field-type">see statuses below</span></li>
+          </ul>
+          <div class="entity-card__states">
+            <div class="entity-card__states-label">Statuses</div>
+            <div class="state-flow">
+              <span class="state-pill badge badge--success">ELIGIBLE</span>
+              <span class="state-pill badge badge--error">INELIGIBLE_POLICY</span>
+              <span class="state-pill badge badge--warning">INELIGIBLE_WINDOW</span>
+              <span class="state-pill badge badge--purple">REQUIRES_REVIEW</span>
+              <span class="state-pill badge badge--error">INELIGIBLE_OPENED</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ServiceFeeBreakdown -->
+      <div class="entity-card">
+        <div class="entity-card__header">
+          <div>
+            <div class="entity-card__name">ServiceFeeBreakdown</div>
+            <div class="entity-card__role">Variable, consumer-facing. Charged at commit. Non-refundable.</div>
+          </div>
+          <span class="badge badge--navy">New</span>
+        </div>
+        <div class="entity-card__body">
+          <ul class="entity-card__fields">
+            <li class="entity-card__field"><span class="entity-card__field-name">baseFee</span><span class="entity-card__field-type">$1.99</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">perItemFee</span><span class="entity-card__field-type">$0.50 × itemCount</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">extraMerchantFee</span><span class="entity-card__field-type">$0.75 × (merchants − 1)</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">exchangeFee</span><span class="entity-card__field-type">$2.99 × exchangeItems</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">totalFee</span><span class="entity-card__field-type">Money (sum)</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- MoneyMovementEvent -->
+      <div class="entity-card">
+        <div class="entity-card__header">
+          <div>
+            <div class="entity-card__name">MoneyMovementEvent</div>
+            <div class="entity-card__role">Parallel state machine to ItemReturn. All money transitions flow through here.</div>
+          </div>
+          <span class="badge badge--navy">New</span>
+        </div>
+        <div class="entity-card__body">
+          <ul class="entity-card__fields">
+            <li class="entity-card__field"><span class="entity-card__field-name">type</span><span class="entity-card__field-type">SERVICE_FEE | ITEM_REFUND | STORE_CREDIT | EXCHANGE_CHARGE | EXCHANGE_REFUND</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">amount</span><span class="entity-card__field-type">Money</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">itemReturnId</span><span class="entity-card__field-type">→ ItemReturn (if item-level)</span></li>
+          </ul>
+          <div class="entity-card__states">
+            <div class="entity-card__states-label">States</div>
+            <div class="state-flow">
+              <span class="state-pill badge badge--gray">PENDING</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--accent">AUTHORIZED</span>
+              <span class="state-arrow-sm">→</span>
+              <span class="state-pill badge badge--success">CAPTURED</span>
+              <span class="state-arrow-sm">/</span>
+              <span class="state-pill badge badge--success">SETTLED</span>
+              <span class="state-arrow-sm">/</span>
+              <span class="state-pill badge badge--error">REVERSED</span>
+              <span class="state-arrow-sm">/</span>
+              <span class="state-pill badge badge--error">FAILED</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- InspectionResult -->
+      <div class="entity-card">
+        <div class="entity-card__header">
+          <div>
+            <div class="entity-card__name">InspectionResult</div>
+            <div class="entity-card__role">Created at merchant (MVP) or hub (roadmap). Accept/reject per item.</div>
+          </div>
+          <span class="badge badge--navy">New</span>
+        </div>
+        <div class="entity-card__body">
+          <ul class="entity-card__fields">
+            <li class="entity-card__field"><span class="entity-card__field-name">itemReturnId</span><span class="entity-card__field-type">→ ItemReturn</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">inspectedAt</span><span class="entity-card__field-type">timestamp</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">inspectedBy</span><span class="entity-card__field-type">merchantId | hubId</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">outcome</span><span class="entity-card__field-type">ACCEPTED | REJECTED</span></li>
+            <li class="entity-card__field"><span class="entity-card__field-name">rejectionReason</span><span class="entity-card__field-type">string (if rejected)</span></li>
+          </ul>
+          <div class="entity-card__states">
+            <div class="entity-card__states-label">Money Consequences</div>
+            <p style="font-size:10px;color:var(--color-text-faint);max-width:none">ACCEPTED → ITEM_REFUND → SETTLED. REJECTED → MoneyMovement → REVERSED. SERVICE_FEE stays CAPTURED regardless.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /entity-grid -->
+
+    <!-- Entity Relationship Summary -->
+    <div class="mt-12">
+      <h3 style="font-size:var(--text-base);font-weight:700;color:var(--color-text);margin-bottom:var(--space-6)">Entity Relationship Overview</h3>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Entity</th>
+              <th>Cardinality</th>
+              <th>Relationship</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code class="inline-code">ConsumerReturn</code></td>
+              <td><span class="badge badge--accent">1:1</span></td>
+              <td>→ <code class="inline-code">ReturnOrder</code></td>
+              <td>Consumer intent maps to one operational order</td>
+            </tr>
+            <tr>
+              <td><code class="inline-code">ReturnOrder</code></td>
+              <td><span class="badge badge--warning">1:N</span></td>
+              <td>→ <code class="inline-code">ReturnFxOrder</code></td>
+              <td>One return may require multiple Dasher tasks (routing/capacity)</td>
+            </tr>
+            <tr>
+              <td><code class="inline-code">ReturnFxOrder</code></td>
+              <td><span class="badge badge--warning">1:N</span></td>
+              <td>→ <code class="inline-code">ItemReturn</code></td>
+              <td>One Dasher task carries N items (cross-merchant)</td>
+            </tr>
+            <tr>
+              <td><code class="inline-code">ItemReturn</code></td>
+              <td><span class="badge badge--accent">N:1</span></td>
+              <td>→ <code class="inline-code">CxOrder</code></td>
+              <td>Each item traces back to its original immutable purchase</td>
+            </tr>
+            <tr>
+              <td><code class="inline-code">ItemReturn</code></td>
+              <td><span class="badge badge--accent">1:1</span></td>
+              <td>→ <code class="inline-code">InspectionResult</code></td>
+              <td>Each item gets one inspection outcome</td>
+            </tr>
+            <tr>
+              <td><code class="inline-code">ItemReturn</code></td>
+              <td><span class="badge badge--warning">1:N</span></td>
+              <td>→ <code class="inline-code">MoneyMovementEvent</code></td>
+              <td>Accept path: ITEM_REFUND event. Exchange: EXCHANGE_CHARGE + EXCHANGE_REFUND</td>
+            </tr>
+            <tr>
+              <td><code class="inline-code">ConsumerReturn</code></td>
+              <td><span class="badge badge--accent">1:1</span></td>
+              <td>→ <code class="inline-code">ServiceFeeBreakdown</code></td>
+              <td>One fee per consumer session, regardless of item/merchant count</td>
+            </tr>
+            <tr>
+              <td><code class="inline-code">LineItem</code></td>
+              <td><span class="badge badge--accent">1:1</span></td>
+              <td>→ <code class="inline-code">EligibilityCheck</code></td>
+              <td>Per-item eligibility computed at cart selection time</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Service Fee Formula -->
+<section class="report-section">
+  <div class="container--wide">
+    <div class="section-header">
+      <div class="section-label">Service Fee Model</div>
+      <h2 class="section-title">Variable Fee Formula</h2>
+      <p class="section-intro">
+        The service fee is transparent, variable, and shown separately from item refunds before the consumer commits. It covers platform logistics cost and aligns incentives across all parties.
+      </p>
+    </div>
+
+    <div class="fee-formula">
+      <div class="fee-formula__title">ServiceFee = f(items, merchants, exchanges)</div>
+
+      <div class="fee-term">
+        <span class="fee-term__op">$</span>
+        <span class="fee-term__val">1.99</span>
+        <span class="fee-term__label">Base fee (per return session)</span>
+      </div>
+      <div class="fee-term">
+        <span class="fee-term__op">+</span>
+        <span class="fee-term__val">0.50</span>
+        <span class="fee-term__label">× item count</span>
+      </div>
+      <div class="fee-term">
+        <span class="fee-term__op">+</span>
+        <span class="fee-term__val">0.75</span>
+        <span class="fee-term__label">× (distinct merchants − 1) &nbsp;[0 if single merchant]</span>
+      </div>
+      <div class="fee-term">
+        <span class="fee-term__op">+</span>
+        <span class="fee-term__val">2.99</span>
+        <span class="fee-term__label">× exchange item count</span>
+      </div>
+      <hr class="fee-divider"/>
+      <div class="fee-total">
+        <span class="fee-total__eq">=</span>
+        <span class="fee-total__val">ServiceFee</span>
+        <span class="fee-total__label">Charged at COMMIT · Non-refundable · Separate from item refunds</span>
+      </div>
+
+      <div class="fee-example">
+        <div class="fee-example__title">Example Calculation — Mixed Return Session</div>
+        <div class="fee-example__row">
+          <span class="fee-example__row-label">2 items from Merchant A, 1 item from Merchant B (3 items, 2 merchants)</span>
+          <span></span>
+        </div>
+        <div class="fee-example__row">
+          <span class="fee-example__row-label">Base fee</span>
+          <span class="fee-example__row-val">$1.99</span>
+        </div>
+        <div class="fee-example__row">
+          <span class="fee-example__row-label">Per item (3 × $0.50)</span>
+          <span class="fee-example__row-val">$1.50</span>
+        </div>
+        <div class="fee-example__row">
+          <span class="fee-example__row-label">Extra merchant (1 × $0.75)</span>
+          <span class="fee-example__row-val">$0.75</span>
+        </div>
+        <div class="fee-example__row">
+          <span class="fee-example__row-label">Exchange items (0)</span>
+          <span class="fee-example__row-val">$0.00</span>
+        </div>
+        <div class="fee-example__row">
+          <span class="fee-example__row-label">Total service fee (consumer pays at commit)</span>
+          <span class="fee-example__row-val">$4.24</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout--success">
+      <div class="callout__icon">✓</div>
+      <div class="callout__body">
+        <div class="callout__title">Item refunds are always full historicalValue</div>
+        <p class="callout__text">Accepted items are refunded the full purchase price from the original <code class="inline-code">CxOrder.historicalValue</code>. The service fee is not deducted from refunds. This is displayed clearly in <code class="inline-code">ReturnQuote</code> so consumers see both numbers before committing.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- State Machines -->
+<section class="report-section">
+  <div class="container--wide">
+    <div class="section-header">
+      <div class="section-label">State Machines</div>
+      <h2 class="section-title">Lifecycle State Diagrams</h2>
+      <p class="section-intro">
+        Two parallel state machines track the same return from different perspectives: <code class="inline-code">ItemReturn</code> tracks physical and inspection status; <code class="inline-code">MoneyMovementEvent</code> tracks financial status. They advance together but independently, allowing financial reversals without touching item state.
+      </p>
+    </div>
+
+    <h3 style="font-size:var(--text-sm);font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:var(--space-4)">ItemReturn State Machine</h3>
+    <div class="state-machine mb-8">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0;width:100%">
+        <div class="state-node">
+          <div class="state-node__pill badge badge--gray">PENDING_PICKUP</div>
+          <div class="state-node__label">Consumer committed</div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div class="state-node">
+          <div class="state-node__pill badge badge--teal">IN_TRANSIT</div>
+          <div class="state-node__label">QR scanned by Dasher</div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div class="state-node">
+          <div class="state-node__pill badge badge--accent">DELIVERED</div>
+          <div class="state-node__label">Dasher confirms delivery</div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div class="state-node">
+          <div class="state-node__pill badge badge--warning">INSPECTING</div>
+          <div class="state-node__label">Merchant reviews item</div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+          <div class="state-node">
+            <div class="state-node__pill badge badge--success">ACCEPTED</div>
+            <div class="state-node__label">Pass inspection</div>
+          </div>
+          <div class="state-node">
+            <div class="state-node__pill badge badge--error">REJECTED</div>
+            <div class="state-node__label">Fail inspection</div>
+          </div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+          <div class="state-node">
+            <div class="state-node__pill badge badge--success">REFUNDED</div>
+            <div class="state-node__label">C&amp;R fired</div>
+          </div>
+          <div class="state-node">
+            <div class="state-node__pill badge badge--error">REVERSED</div>
+            <div class="state-node__label">No refund</div>
+          </div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div class="state-node">
+          <div class="state-node__pill badge badge--navy">COMPLETED</div>
+          <div class="state-node__label">Terminal state</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:var(--text-sm);font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:var(--space-4)">MoneyMovementEvent State Machine</h3>
+    <div class="state-machine mb-8">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0;width:100%">
+        <div class="state-node">
+          <div class="state-node__pill badge badge--gray">PENDING</div>
+          <div class="state-node__label">Event created</div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div class="state-node">
+          <div class="state-node__pill badge badge--accent">AUTHORIZED</div>
+          <div class="state-node__label">Payment authorized</div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+          <div class="state-node">
+            <div class="state-node__pill badge badge--success">CAPTURED</div>
+            <div class="state-node__label">Fee collected (SERVICE_FEE)</div>
+          </div>
+          <div class="state-node">
+            <div class="state-node__pill badge badge--success">SETTLED</div>
+            <div class="state-node__label">Refund sent (ITEM_REFUND)</div>
+          </div>
+        </div>
+        <div class="state-arrow">→</div>
+        <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+          <div class="state-node">
+            <div class="state-node__pill badge badge--accent" style="opacity:0.4">—</div>
+            <div class="state-node__label">CAPTURED is terminal (non-refundable)</div>
+          </div>
+          <div class="state-node">
+            <div class="state-node__pill badge badge--error">REVERSED</div>
+            <div class="state-node__label">Rejection triggers reversal</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:var(--space-3);margin-top:var(--space-4)">
+      <div class="callout callout--warning" style="flex:1;min-width:260px;margin:0">
+        <div class="callout__icon">⚠</div>
+        <div class="callout__body">
+          <div class="callout__title">FAILED is a terminal error state</div>
+          <p class="callout__text">Payment failures (authorization, capture, settlement) land in FAILED. These trigger support workflows and do not auto-retry without human review.</p>
+        </div>
+      </div>
+      <div class="callout callout--success" style="flex:1;min-width:260px;margin:0">
+        <div class="callout__icon">✓</div>
+        <div class="callout__body">
+          <div class="callout__title">SERVICE_FEE stays CAPTURED regardless</div>
+          <p class="callout__text">Even if all items are rejected, the SERVICE_FEE MoneyMovementEvent remains in CAPTURED. It is explicitly excluded from reversal logic. Merchant inspection outcomes do not affect service fee.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Sequence Diagrams -->
+<section class="report-section" id="section-diagrams">
+  <div class="container--wide">
+    <div class="section-header">
+      <div class="section-label">Sequence Diagrams</div>
+      <h2 class="section-title">System Interaction Flows</h2>
+      <p class="section-intro">
+        Four critical flows illustrated as swimlane sequence diagrams — consumer initiation, Dasher pickup, merchant settlement, and eligibility checking.
+      </p>
+    </div>
+
+    <!-- ────────────────────────────────────
+         Diagram 1: Consumer Initiation Flow
+    ──────────────────────────────────────── -->
+    <h3 style="font-size:var(--text-base);font-weight:700;margin-bottom:var(--space-3)">
+      Diagram 1 — Consumer Initiation Flow
+    </h3>
+    <p class="text-sm text-muted mb-6" style="max-width:none">Consumer selects items → gets quote → commits → QR generated. Service fee charged synchronously at commit.</p>
+
+    <div class="sequence-diagram">
+      <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr">
+        <div class="seq-actor">Consumer App</div>
+        <div class="seq-actor">Return Service</div>
+        <div class="seq-actor">Eligibility Svc</div>
+        <div class="seq-actor">Payment Service</div>
+      </div>
+      <div class="seq-body">
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg">GET /orders/returnable</span><div class="seq-note">Load order history with eligibility</div></div>
+          <div class="seq-cell"><span class="seq-msg">→ fetch eligible items</span></div>
+          <div class="seq-cell"><span class="seq-msg">checkEligibility(lineItems)</span><div class="seq-note">Policy + window + behavior</div></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg seq-msg--return">EligibilityCheck[] results</span></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg seq-msg--return">Items with ELIGIBLE | INELIGIBLE badges</span><div class="seq-note">Rendered in Order History</div></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-divider" style="grid-column:1/-1">Consumer builds return cart</div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg">POST /returns/quote</span><div class="seq-note">{ items[], refundMethods }</div></div>
+          <div class="seq-cell"><span class="seq-msg">calculateServiceFee(items)</span><div class="seq-note">Base + per-item + merchant + exchange</div></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg seq-msg--return">ReturnQuote { serviceFee, itemRefunds[] }</span><div class="seq-note">Shown separately to consumer</div></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-divider" style="grid-column:1/-1">Consumer confirms → COMMIT</div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg">POST /returns/commit { quoteId }</span></div>
+          <div class="seq-cell"><span class="seq-msg">validate quote not expired</span></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg">chargeServiceFee(consumerId, fee)</span><div class="seq-note">Synchronous capture</div></div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg seq-msg--return">SERVICE_FEE → CAPTURED</span></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--event">ConsumerReturn → COMMITTED</span>
+            <div class="seq-note" style="margin-top:4px">generateQRToken() · create ReturnOrder + FxOrders</div>
+          </div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg seq-msg--return">{ qrToken, estimatedPickup }</span><div class="seq-note">QR displayed in Return History</div></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ────────────────────────────────────
+         Diagram 2: Dasher Pickup Flow
+    ──────────────────────────────────────── -->
+    <h3 style="font-size:var(--text-base);font-weight:700;margin-bottom:var(--space-3);margin-top:var(--space-16)">
+      Diagram 2 — Dasher Pickup Flow
+    </h3>
+    <p class="text-sm text-muted mb-6" style="max-width:none">Dasher is pre-assigned. QR scan resolves (DasherID + QR) → FxOrder items → liability shifts → IN_TRANSIT.</p>
+
+    <div class="sequence-diagram">
+      <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr">
+        <div class="seq-actor">Dasher App</div>
+        <div class="seq-actor">Return Service</div>
+        <div class="seq-actor">Dispatch Service</div>
+        <div class="seq-actor">Notification Svc</div>
+      </div>
+      <div class="seq-body">
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-divider" style="grid-column:1/-1">Dasher assigned — pre-pickup</div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg">assignDasher(fxOrderId, dasherId)</span><div class="seq-note">Routing & capacity decision</div></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg seq-msg--event">ReturnFxOrder → ASSIGNED</span></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg">notify(dasherId, "new pickup task")</span></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg seq-msg--return">Task: items list + consumer address</span><div class="seq-note">Dasher knows items before arriving</div></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg">notify(consumerId, "Dasher on the way")</span></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-divider" style="grid-column:1/-1">Dasher arrives at consumer doorstep</div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg">scanQR(qrToken)</span><div class="seq-note">Consumer shows QR on phone</div></div>
+          <div class="seq-cell"><span class="seq-msg">resolve(dasherId + qrToken) → FxOrder</span><div class="seq-note">Verify Dasher owns this FxOrder</div></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--event">ItemReturn[] → IN_TRANSIT</span>
+            <div class="seq-note">Liability shift: consumer → Dasher</div>
+          </div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg seq-msg--return">Pickup confirmed screen</span><div class="seq-note">Item checklist with confirmation</div></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg">notify(consumerId, "Items picked up")</span></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-divider" style="grid-column:1/-1">Dasher delivers to merchant</div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg">confirmDelivery(fxOrderId)</span></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--event">ReturnFxOrder → DELIVERED</span>
+            <div class="seq-note">ItemReturn[] → DELIVERED</div>
+          </div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg">notify(merchantId, "Return delivery arrived")</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ────────────────────────────────────
+         Diagram 3: Merchant Inspection & Settlement
+    ──────────────────────────────────────── -->
+    <h3 style="font-size:var(--text-base);font-weight:700;margin-bottom:var(--space-3);margin-top:var(--space-16)">
+      Diagram 3 — Merchant Inspection &amp; Money Settlement Flow
+    </h3>
+    <p class="text-sm text-muted mb-6" style="max-width:none">Merchant inspects each item and submits accept/reject decisions. Accepted triggers C&amp;R → refund. Rejected triggers reversal. Service fee untouched.</p>
+
+    <div class="sequence-diagram">
+      <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr 1fr">
+        <div class="seq-actor">Merchant Portal</div>
+        <div class="seq-actor">Inspection Svc</div>
+        <div class="seq-actor">Return Service</div>
+        <div class="seq-actor">C&amp;R Service</div>
+        <div class="seq-actor">Payment Service</div>
+      </div>
+      <div class="seq-body">
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg">GET /returns/incoming</span><div class="seq-note">View items awaiting inspection</div></div>
+          <div class="seq-cell"><span class="seq-msg seq-msg--return">ItemReturn[] where status=DELIVERED</span></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg">POST /inspect { itemReturnId, outcome: ACCEPTED }</span></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--event">create InspectionResult</span>
+            <div class="seq-note">outcome: ACCEPTED</div>
+          </div>
+          <div class="seq-cell"><span class="seq-msg seq-msg--event">ItemReturn → ACCEPTED</span></div>
+          <div class="seq-cell"><span class="seq-msg">triggerRefund(itemReturnId)</span><div class="seq-note">C&R fires against original CxOrder</div></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--return">ITEM_REFUND → SETTLED</span>
+            <div class="seq-note">historicalValue refunded to consumer</div>
+          </div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+          <div class="seq-divider" style="grid-column:1/-1">Parallel: rejection path for another item</div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg">POST /inspect { itemReturnId, outcome: REJECTED, reason }</span></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--error">create InspectionResult</span>
+            <div class="seq-note">outcome: REJECTED</div>
+          </div>
+          <div class="seq-cell"><span class="seq-msg seq-msg--error">ItemReturn → REJECTED</span></div>
+          <div class="seq-cell"><span class="seq-msg seq-msg--error">reverseRefund(itemReturnId)</span><div class="seq-note">Cancel pending ITEM_REFUND</div></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--error">ITEM_REFUND → REVERSED</span>
+            <div class="seq-note">Consumer loses item value</div>
+          </div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+          <div class="seq-divider" style="grid-column:1/-1">All items inspected → ConsumerReturn settlement</div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--return">ConsumerReturn → SETTLED / PARTIALLY_SETTLED</span>
+            <div class="seq-note">Evaluated after all ItemReturn terminal states</div>
+          </div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell">
+            <span class="seq-msg badge--accent" style="font-size:10px;padding:2px 6px;background:var(--color-accent-light);color:var(--color-accent);border:1px solid rgba(74,111,165,0.2);border-radius:var(--radius-md)">SERVICE_FEE stays CAPTURED (untouched)</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ────────────────────────────────────
+         Diagram 4: Eligibility Check Flow
+    ──────────────────────────────────────── -->
+    <h3 style="font-size:var(--text-base);font-weight:700;margin-bottom:var(--space-3);margin-top:var(--space-16)">
+      Diagram 4 — Eligibility Check Flow
+    </h3>
+    <p class="text-sm text-muted mb-6" style="max-width:none">Eligibility is computed per line item when the consumer opens Order History. Three signals: merchant return policy, item-level policy, and consumer behavior (fraud signal).</p>
+
+    <div class="sequence-diagram">
+      <div class="seq-header" style="grid-template-columns: 1fr 1fr 1fr 1fr">
+        <div class="seq-actor">Consumer App</div>
+        <div class="seq-actor">Eligibility Svc</div>
+        <div class="seq-actor">Merchant Policy Svc</div>
+        <div class="seq-actor">Consumer Behavior Svc</div>
+      </div>
+      <div class="seq-body">
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"><span class="seq-msg">GET /orders/returnable</span><div class="seq-note">Consumer opens Order History</div></div>
+          <div class="seq-cell"><span class="seq-msg">checkEligibility(lineItems[], consumerId)</span></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg">getMerchantPolicy(merchantId, itemCategory)</span></div>
+          <div class="seq-cell"><span class="seq-msg seq-msg--return">ReturnPolicy { window, conditions, exclusions }</span></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell">
+            <span class="seq-msg">check returnWindow(orderDate, policy.windowDays)</span>
+            <div class="seq-note">If expired → INELIGIBLE_WINDOW</div>
+          </div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell"><span class="seq-msg">getConsumerBehavior(consumerId)</span></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--return">{ returnRate, monthlyReturnValue, flaggedItems[] }</span>
+            <div class="seq-note">Fraud detection signal</div>
+          </div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--warning">evaluate fraud signals</span>
+            <div class="seq-note">High rate or value → REQUIRES_REVIEW</div>
+          </div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step seq-step--alt" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell"></div>
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--event">create EligibilityCheck[] per lineItem</span>
+            <div class="seq-note">ELIGIBLE | INELIGIBLE_POLICY | INELIGIBLE_WINDOW | REQUIRES_REVIEW | INELIGIBLE_OPENED</div>
+          </div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+        <div class="seq-step" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <div class="seq-cell">
+            <span class="seq-msg seq-msg--return">Order History with eligibility badges per item</span>
+            <div class="seq-note">ELIGIBLE items selectable; others annotated with reason</div>
+          </div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+          <div class="seq-cell"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- QR Code Design Rationale -->
+<section class="report-section">
+  <div class="container--wide">
+    <div class="section-header">
+      <div class="section-label">QR Code Architecture</div>
+      <h2 class="section-title">QR as Handover Confirmation, Not Discovery</h2>
+      <p class="section-intro">
+        The QR code design encodes a critical architectural decision: liability shifts at scan time, not at assignment time.
+      </p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card card--elevated">
+        <div class="card__title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
+          What the QR Code Contains
+        </div>
+        <div class="code-block">
+          <span class="code-cmt">// ConsumerReturn.qrToken structure</span><br/>
+          <span class="code-type">QRPayload</span> = {<br/>
+          &nbsp;&nbsp;<span class="code-prop">token</span>: <span class="code-str">"cr_tok_A7x9...Pq2"</span>, <span class="code-cmt">// opaque</span><br/>
+          &nbsp;&nbsp;<span class="code-prop">consumerReturnId</span>: <span class="code-str">"cr_..."</span>,<br/>
+          &nbsp;&nbsp;<span class="code-prop">issuedAt</span>: <span class="code-num">1721000000</span>,<br/>
+          &nbsp;&nbsp;<span class="code-prop">expiresAt</span>: <span class="code-num">1721086400</span> <span class="code-cmt">// 24h window</span><br/>
+          }<br/><br/>
+          <span class="code-cmt">// Resolution: backend lookup</span><br/>
+          <span class="code-kw">resolve</span>(<span class="code-prop">dasherId</span>, <span class="code-prop">qrToken</span>) → <span class="code-type">ReturnFxOrder</span><br/>
+          <span class="code-cmt">// → validate Dasher owns this FxOrder</span><br/>
+          <span class="code-cmt">// → transition items to IN_TRANSIT</span>
+        </div>
+      </div>
+      <div class="card card--elevated">
+        <div class="card__title">Why This Design?</div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:var(--space-4)">
+          <li style="display:flex;gap:var(--space-3);font-size:var(--text-sm)">
+            <span style="color:var(--color-success);font-weight:700;flex-shrink:0">1.</span>
+            <span><strong>One QR, multiple Dashers.</strong> If routing splits items across two FxOrders, each Dasher scans the same QR. The backend resolves each to their specific FxOrder — correct items, correct liability shift, no confusion.</span>
+          </li>
+          <li style="display:flex;gap:var(--space-3);font-size:var(--text-sm)">
+            <span style="color:var(--color-success);font-weight:700;flex-shrink:0">2.</span>
+            <span><strong>Scan = liability transfer.</strong> Before scan: consumer holds liability. After scan: Dasher's FxOrder holds liability. This maps directly to the physical handover — items change hands, state changes simultaneously.</span>
+          </li>
+          <li style="display:flex;gap:var(--space-3);font-size:var(--text-sm)">
+            <span style="color:var(--color-success);font-weight:700;flex-shrink:0">3.</span>
+            <span><strong>Consumer UX simplicity.</strong> Consumer sees one QR in Return History. They don't need to know about FxOrders, routing, or capacity. The platform manages complexity behind the token.</span>
+          </li>
+          <li style="display:flex;gap:var(--space-3);font-size:var(--text-sm)">
+            <span style="color:var(--color-success);font-weight:700;flex-shrink:0">4.</span>
+            <span><strong>Replay attack prevention.</strong> The resolve operation validates that (dasherId, qrToken) → a VALID, ASSIGNED FxOrder in the correct state. Stale or re-used tokens fail validation before any state transition.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Roadmap: Hub Inspection -->
+<section class="report-section">
+  <div class="container--wide">
+    <div class="section-header">
+      <div class="section-label">Roadmap</div>
+      <h2 class="section-title">Hub Inspection: Built Into the Model Today</h2>
+      <p class="section-intro">
+        The <code class="inline-code">ReturnFxOrder.deliveryDestination: 'merchant' | 'hub'</code> field is the only schema change needed to enable centralized hub inspection. The rest of the state machine is identical.
+      </p>
+    </div>
+
+    <div class="roadmap-track">
+      <div class="roadmap-item">
+        <div class="roadmap-item__phase">MVP — Now</div>
+        <div class="roadmap-item__title">Merchant-Direct Inspection</div>
+        <div class="roadmap-item__desc">Dashers deliver returns to the originating merchant. Merchant staff inspect items manually. <code class="inline-code">deliveryDestination: 'merchant'</code>. InspectionResult created by merchant portal. This is the production architecture.</div>
+      </div>
+      <div class="roadmap-item roadmap-item--future">
+        <div class="roadmap-item__phase">Phase 2 — Hub Pilot</div>
+        <div class="roadmap-item__title">Centralized Hub Receipt</div>
+        <div class="roadmap-item__desc">Dashers deliver to a platform-operated hub instead of merchant. Hub receives items from multiple merchants in batch. <code class="inline-code">deliveryDestination: 'hub'</code>. All downstream state machines (ItemReturn, MoneyMovement, InspectionResult) are unchanged.</div>
+      </div>
+      <div class="roadmap-item roadmap-item--future">
+        <div class="roadmap-item__phase">Phase 3 — Standardized Grading</div>
+        <div class="roadmap-item__title">Hub Inspection with Grading &amp; Robotics</div>
+        <div class="roadmap-item__desc">Hub implements standardized condition grading, photo documentation, and (eventually) robotic sorting. InspectionResult gains a <code class="inline-code">grade</code> field. Platform can offer merchant-configurable accept thresholds based on grade rather than binary accept/reject.</div>
+      </div>
+      <div class="roadmap-item roadmap-item--future">
+        <div class="roadmap-item__phase">Phase 4 — Recommerce</div>
+        <div class="roadmap-item__title">Platform-Managed Resale</div>
+        <div class="roadmap-item__desc">Graded items in acceptable condition can be relisted on the platform marketplace rather than returned to original merchant. New MoneyMovementEvent type: <code class="inline-code">RESALE_CREDIT</code>. Merchant earns partial value from resale instead of full refund obligation.</div>
+      </div>
+    </div>
+
+    <div class="callout callout--info mt-8">
+      <div class="callout__icon">🏗</div>
+      <div class="callout__body">
+        <div class="callout__title">Zero schema migration for Phase 2</div>
+        <p class="callout__text">The <code class="inline-code">ReturnFxOrder.deliveryDestination</code> enum field is already in the MVP schema. Routing logic changes (dispatch assigns to hub address instead of merchant address), but no entity model changes are required to ship Phase 2. This was a deliberate architecture decision.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════
+     PART III — DESIGN DECISIONS
+══════════════════════════════════════════════════════ -->
+<div class="section-divider" id="section-decisions">
+  <div class="container--wide section-divider__inner">
+    <div class="section-divider__num">III</div>
+    <div>
+      <div class="section-divider__title">Design Decisions</div>
+      <div class="section-divider__sub">8 key architectural choices with rationale and consequences</div>
+    </div>
+  </div>
+</div>
+
+<section class="report-section">
+  <div class="container--wide">
+    <div class="section-header">
+      <div class="section-label">Architecture Decisions</div>
+      <h2 class="section-title">Key Design Choices</h2>
+      <p class="section-intro">
+        Each decision below was made with explicit trade-offs in mind. The rationale is documented here for engineering leadership review.
+      </p>
+    </div>
+
+    <div class="decision-grid">
+
+      <!-- Decision 1 -->
+      <div class="decision-card">
+        <div class="decision-card__header">
+          <div class="decision-card__num">1</div>
+          <div>
+            <div class="decision-card__title">ConsumerReturn ≠ ReturnOrder</div>
+            <div class="decision-card__subtitle">Consumer intent layer decoupled from operational execution layer</div>
+          </div>
+        </div>
+        <div class="decision-card__body">
+          <p><code class="inline-code">ConsumerReturn</code> owns the consumer-facing state: what items the consumer selected, their QR code, the service fee they paid, and the refund state they see in Return History. It is the "receipt" of the return transaction from the consumer's perspective.</p>
+          <p><code class="inline-code">ReturnOrder</code> (and its <code class="inline-code">ReturnFxOrder</code> children) owns the operational execution: which Dasher is assigned, where items are routed, and what the physical delivery status is. It is the "fulfillment" layer.</p>
+          <p>These two can evolve independently. If routing needs to re-assign a Dasher, split items across two FxOrders, or re-route to a hub — none of that touches <code class="inline-code">ConsumerReturn</code> state. The consumer never sees the fulfillment complexity.</p>
+        </div>
+        <div class="decision-card__consequence">
+          <div class="decision-card__consequence-label">Consequence</div>
+          <div class="decision-card__consequence-text">Support tooling, consumer-facing status, and refund state are always consistent and readable from ConsumerReturn — regardless of operational re-routing events on the ReturnOrder side.</div>
+        </div>
+      </div>
+
+      <!-- Decision 2 -->
+      <div class="decision-card">
+        <div class="decision-card__header">
+          <div class="decision-card__num">2</div>
+          <div>
+            <div class="decision-card__title">Service Fee Charged at Commit, Not at Pickup</div>
+            <div class="decision-card__subtitle">Fee is for the pickup service, not the return outcome</div>
+          </div>
+        </div>
+        <div class="decision-card__body">
+          <p>The service fee is non-refundable and is charged the moment a consumer commits to a return — before any Dasher arrives, before any inspection occurs. This is a deliberate incentive alignment decision.</p>
+          <p><strong>Fraud reduction:</strong> Consumers who pay upfront complete their returns at a significantly higher rate. Opportunistic "I'll see if they even come" behavior is eliminated.</p>
+          <p><strong>Dasher earnings certainty:</strong> Dashers are compensated for their time regardless of whether the merchant accepts the items. This is analogous to a delivery fee being non-refundable if the recipient refuses the package.</p>
+          <p><strong>Merchant protection:</strong> Merchants don't bear the cost of logistics for items they ultimately reject. The service fee sits entirely with the consumer-platform relationship.</p>
+        </div>
+        <div class="decision-card__consequence">
+          <div class="decision-card__consequence-label">Consequence</div>
+          <div class="decision-card__consequence-text">SERVICE_FEE MoneyMovementEvent is excluded from all reversal logic. Explicit guard in C&R service: "never reverse SERVICE_FEE type events." This must be enforced at the service layer, not just by convention.</div>
+        </div>
+      </div>
+
+      <!-- Decision 3 -->
+      <div class="decision-card">
+        <div class="decision-card__header">
+          <div class="decision-card__num">3</div>
+          <div>
+            <div class="decision-card__title">ReturnFxOrder = Dasher Task, Not Merchant Partition</div>
+            <div class="decision-card__subtitle">Assignment by routing/capacity, not by merchant boundary</div>
+          </div>
+        </div>
+        <div class="decision-card__body">
+          <p>A <code class="inline-code">ReturnFxOrder</code> represents one Dasher's pickup task. It is <strong>not</strong> one task per merchant. Items from multiple merchants can be in one FxOrder; one merchant's items can span multiple FxOrders across different Dashers.</p>
+          <p>This matches how forward delivery already works — a Dasher picks up from multiple restaurants in one batched trip. The routing engine optimizes for geography, capacity, and timing — not for merchant boundaries.</p>
+          <p>The implication: <code class="inline-code">ReturnFxOrder</code> carries a <code class="inline-code">deliveryDestination</code> that is the merchant (or hub) where items will be dropped. Items destined for different merchants will be in different FxOrders — but the split is by delivery destination, not by a rule that says "one FxOrder per merchant in the ConsumerReturn."</p>
+        </div>
+        <div class="decision-card__consequence">
+          <div class="decision-card__consequence-label">Consequence</div>
+          <div class="decision-card__consequence-text">Dispatch logic groups ItemReturns by deliveryDestination when creating FxOrders. A ConsumerReturn with 3 merchants creates 3 FxOrders (one per delivery destination), not necessarily 3 Dashers — the same Dasher can be assigned all three if routing permits.</div>
+        </div>
+      </div>
+
+      <!-- Decision 4 -->
+      <div class="decision-card">
+        <div class="decision-card__header">
+          <div class="decision-card__num">4</div>
+          <div>
+            <div class="decision-card__title">QR Per ConsumerReturn, Not Per FxOrder</div>
+            <div class="decision-card__subtitle">One QR code, backend resolves to correct Dasher's task</div>
+          </div>
+        </div>
+        <div class="decision-card__body">
+          <p>The consumer holds one QR code. The backend resolution logic uses the tuple (DasherID + QR token) to identify which FxOrder this Dasher should be handling. Multiple Dashers can each scan the same QR at different times, with each scan triggering only <em>their</em> FxOrder's liability shift.</p>
+          <p>This was an explicit choice over the alternative (one QR per FxOrder, consumer holds multiple QRs). The consumer-facing simplicity is significant — "show the Dasher your QR code" is a much simpler instruction than "show Dasher A their QR and Dasher B their different QR."</p>
+          <p>The resolution happens server-side: <code class="inline-code">resolve(dasherId, qrToken) → FxOrder</code>. If the Dasher is not assigned to any FxOrder for this ConsumerReturn, the scan is rejected.</p>
+        </div>
+        <div class="decision-card__consequence">
+          <div class="decision-card__consequence-label">Consequence</div>
+          <div class="decision-card__consequence-text">The resolve endpoint must be idempotent — multiple scans of the same (dasherId, qrToken) from the same Dasher return the same FxOrder without re-transitioning state. State transition is guarded: only from ASSIGNED → PICKED_UP, and only once.</div>
+        </div>
+      </div>
+
+      <!-- Decision 5 -->
+      <div class="decision-card">
+        <div class="decision-card__header">
+          <div class="decision-card__num">5</div>
+          <div>
+            <div class="decision-card__title">historicalValue Immutability</div>
+            <div class="decision-card__subtitle">Refund amount is snapshotted at ItemReturn creation from original CxOrder</div>
+          </div>
+        </div>
+        <div class="decision-card__body">
+          <p>When an <code class="inline-code">ItemReturn</code> is created, it snapshots <code class="inline-code">historicalValue</code> from the original <code class="inline-code">CxOrder.lineItem.price</code>. This value is immutable — it never changes after creation and is the sole basis for the refund amount.</p>
+          <p>This prevents two classes of manipulation: (1) price changes on the CxOrder (e.g., if prices were ever correctable post-purchase) cannot affect pending return amounts; (2) fraudulent attempts to re-submit the return with an inflated amount are blocked at the service layer.</p>
+          <p>The C&amp;R service reads <code class="inline-code">ItemReturn.historicalValue</code> directly when firing the refund — it does not re-query <code class="inline-code">CxOrder</code> at settlement time.</p>
+        </div>
+        <div class="decision-card__consequence">
+          <div class="decision-card__consequence-label">Consequence</div>
+          <div class="decision-card__consequence-text">historicalValue is set exactly once in the ItemReturn lifecycle (at creation). All downstream services treat it as a read-only constant. Any refund reconciliation discrepancy should trace back to this field, making audits straightforward.</div>
+        </div>
+      </div>
+
+      <!-- Decision 6 -->
+      <div class="decision-card">
+        <div class="decision-card__header">
+          <div class="decision-card__num">6</div>
+          <div>
+            <div class="decision-card__title">Polymorphic Order: CxOrder and ReturnOrder as Siblings</div>
+            <div class="decision-card__subtitle">orderType: 'purchase' | 'return' on a shared Order abstraction</div>
+          </div>
+        </div>
+        <div class="decision-card__body">
+          <p>Rather than treating returns as a separate domain with its own order infrastructure, <code class="inline-code">ReturnOrder</code> is modeled as an Order with <code class="inline-code">orderType: 'return'</code> — a sibling to <code class="inline-code">CxOrder</code> (<code class="inline-code">orderType: 'purchase'</code>).</p>
+          <p>This means: audit trails unify across order types, support tooling built for orders works on returns, analytics pipelines see both directions, and fraud systems can correlate purchase and return behavior on the same entity graph.</p>
+          <p>The operational fields that differ between purchase and return orders (FxOrders, delivery direction, etc.) live on the subtype — the shared Order base carries only the common fields (id, orderType, consumerId, timestamps, status).</p>
+        </div>
+        <div class="decision-card__consequence">
+          <div class="decision-card__consequence-label">Consequence</div>
+          <div class="decision-card__consequence-text">Order lookup endpoints need to filter by orderType to avoid polluting purchase history with returns. Consumer-facing order history shows only 'purchase' orders by default; 'return' orders surface through the dedicated Return History surface (accessible from the same app).</div>
+        </div>
+      </div>
+
+      <!-- Decision 7 -->
+      <div class="decision-card">
+        <div class="decision-card__header">
+          <div class="decision-card__num">7</div>
+          <div>
+            <div class="decision-card__title">Eligibility as a First-Class Fraud Signal</div>
+            <div class="decision-card__subtitle">Consumer behavior is a direct input to EligibilityCheck, not a post-hoc filter</div>
+          </div>
+        </div>
+        <div class="decision-card__body">
+          <p>The <code class="inline-code">EligibilityCheck</code> entity combines three signals: merchant return policy, item-level policy (e.g., perishables, opened electronics), and consumer behavior. Consumer behavior — return rate, monthly return value, and flagged items — is a first-class input, not an afterthought.</p>
+          <p>This means a consumer who has returned 90% of their orders in the past 30 days will see <code class="inline-code">REQUIRES_REVIEW</code> on eligible items, even if the merchant's policy is permissive. The signal gates them into a review queue rather than a hard block — reducing false positives while still allowing human review of edge cases.</p>
+          <p>The consumer behavior thresholds are configurable (not hardcoded) and owned by the Trust &amp; Safety team — not the Returns team.</p>
+        </div>
+        <div class="decision-card__consequence">
+          <div class="decision-card__consequence-label">Consequence</div>
+          <div class="decision-card__consequence-text">Consumer Behavior Service must be queried at eligibility check time (pre-cart), not at commit time. This prevents a fraudulent consumer from discovering ineligibility only after reaching the QR code screen, which would be a poor UX and a potential trust issue.</div>
+        </div>
+      </div>
+
+      <!-- Decision 8 -->
+      <div class="decision-card">
+        <div class="decision-card__header">
+          <div class="decision-card__num">8</div>
+          <div>
+            <div class="decision-card__title">Hub Inspection as Roadmap Feature, Not MVP Scope</div>
+            <div class="decision-card__subtitle">deliveryDestination field ships in MVP schema with 'hub' enum value reserved</div>
+          </div>
+        </div>
+        <div class="decision-card__body">
+          <p>The MVP routes all returns directly to merchants (<code class="inline-code">deliveryDestination: 'merchant'</code>). However, the hub inspection model — where items go to a platform-operated centralized facility — is a natural evolution that materially changes unit economics and inspection quality.</p>
+          <p>The architectural decision was to bake the <code class="inline-code">deliveryDestination</code> enum into the <code class="inline-code">ReturnFxOrder</code> schema today, with <code class="inline-code">'hub'</code> as a reserved value. When Phase 2 ships, dispatch routing changes to route eligible items to hub addresses. No entity schema migrations required.</p>
+          <p>The downstream systems (InspectionResult, MoneyMovementEvent, ItemReturn state machine) are hub-agnostic — they don't distinguish between a merchant-side or hub-side inspection. The <code class="inline-code">inspectedBy</code> field on InspectionResult accepts either a merchantId or a hubId.</p>
+        </div>
+        <div class="decision-card__consequence">
+          <div class="decision-card__consequence-label">Consequence</div>
+          <div class="decision-card__consequence-text">Dispatch service must be extended (not refactored) when hub launches: new routing logic branch for 'hub' destinations. All other services are already compatible. The team estimates a 1-sprint change to dispatch + hub onboarding work when Phase 2 is prioritized.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Architecture Principles -->
+<section class="report-section">
+  <div class="container--wide">
+    <div class="section-header">
+      <div class="section-label">Architecture Principles</div>
+      <h2 class="section-title">Guiding Principles for RLP</h2>
+      <p class="section-intro">
+        These principles informed every entity, state machine, and API boundary decision in this proposal.
+      </p>
+    </div>
+
+    <div class="principles-grid">
+      <div class="principle-card">
+        <div class="principle-card__icon">⚡</div>
+        <div class="principle-card__title">Consumer State Is Sacred</div>
+        <div class="principle-card__desc">ConsumerReturn is the consumer's record of the transaction. Operational re-routing, Dasher re-assignment, or fulfillment changes must never silently mutate consumer-visible state. All consumer state transitions are intentional and auditable.</div>
+      </div>
+      <div class="principle-card">
+        <div class="principle-card__icon">🔒</div>
+        <div class="principle-card__title">Money Moves Only Through MoneyMovementEvent</div>
+        <div class="principle-card__desc">No direct payment mutations. Every charge, refund, credit, or reversal goes through a MoneyMovementEvent with a type, state machine, and audit trail. The C&R service is the only writer; all other services read state.</div>
+      </div>
+      <div class="principle-card">
+        <div class="principle-card__icon">📸</div>
+        <div class="principle-card__title">Immutable Financial Snapshots</div>
+        <div class="principle-card__desc">historicalValue is snapshotted at creation. ReturnQuote is locked at commit. ServiceFeeBreakdown is written once. Financial history is never retroactively modified — only appended to via new events.</div>
+      </div>
+      <div class="principle-card">
+        <div class="principle-card__icon">🌿</div>
+        <div class="principle-card__title">Extend, Don't Rewrite</div>
+        <div class="principle-card__desc">RLP is designed as an additive layer on existing platform infrastructure. Polymorphic Order, shared Dasher dispatch, and existing payment rails are extended — not replaced. New entities are introduced; existing entities are read-only inputs.</div>
+      </div>
+      <div class="principle-card">
+        <div class="principle-card__icon">🛡</div>
+        <div class="principle-card__title">Fraud Is a First-Class Concern</div>
+        <div class="principle-card__desc">Eligibility, historicalValue immutability, commit-time fee capture, and consumer behavior signals are all fraud mitigations baked into the architecture — not added as patches. Returns are an inherently higher-risk surface than purchases.</div>
+      </div>
+      <div class="principle-card">
+        <div class="principle-card__icon">🗓</div>
+        <div class="principle-card__title">Roadmap Hooks Are Schema Commitments</div>
+        <div class="principle-card__desc">Known future features (hub delivery, exchange items) have explicit field reservations in the MVP schema. This prevents the "we'd need a migration" response when Phase 2 is prioritized. Schema is cheap to extend now; cheap to change later.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════════ -->
+<footer class="site-footer">
+  <div class="container--wide">
+    <div class="site-footer__inner">
+      <p>RLP — Reverse Logistics Platform · Architecture Proposal · Internal Confidential</p>
+      <p class="footer-mark">v1.0 · Engineering Leadership Review</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    const t = document.querySelector('[data-theme-toggle]'),
+          r = document.documentElement;
+    let d = matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+    r.setAttribute('data-theme', d);
+    if (t) {
+      t.innerHTML = d === 'dark'
+        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+        : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      t.setAttribute('aria-label', 'Switch to ' + (d === 'dark' ? 'light' : 'dark') + ' mode');
+      t.addEventListener('click', () => {
+        d = d === 'dark' ? 'light' : 'dark';
+        r.setAttribute('data-theme', d);
+        t.setAttribute('aria-label', 'Switch to ' + (d === 'dark' ? 'light' : 'dark') + ' mode');
+        t.innerHTML = d === 'dark'
+          ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+          : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      });
+    }
+
+    // Smooth scroll for nav links
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', e => {
+        const target = document.querySelector(a.getAttribute('href'));
+        if (target) {
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  })();
+</script>
+</body>
+</html>
